@@ -36,6 +36,34 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn major(&self) -> u8 {
+        match *self {
+            Type::Array => 4,
+            Type::Bool  => 7,
+            Type::Break => 7,
+            Type::Bytes => 2,
+            Type::Float16 => 7,
+            Type::Float32 => 7,
+            Type::Float64 => 7,
+            Type::Int16   => 1,
+            Type::Int32   => 1,
+            Type::Int64   => 1,
+            Type::Int8    => 1,
+            Type::Null    => 7,
+            Type::Object  => 5,
+            Type::Tagged  => 6,
+            Type::Text    => 3,
+            Type::UInt16  => 0,
+            Type::UInt32  => 0,
+            Type::UInt64  => 0,
+            Type::UInt8   => 0,
+            Type::Undefined => 7,
+            Type::Unknown { major: m, .. } => m,
+            Type::Reserved { major: m, .. } => m,
+            Type::Unassigned { major: m, .. } => m
+        }
+    }
+
     pub fn read<R: ReadBytesExt>(r: &mut R) -> Result<(Type, u8), Error> {
         let b = try!(r.read_u8());
         match ((b & 0b111_00000) >> 5, b & 0b000_11111) {
@@ -118,6 +146,28 @@ impl Tag {
             36    => Tag::Mime,
             55799 => Tag::CborSelf,
             _     => Tag::Unassigned(x)
+        }
+    }
+
+    pub fn to(&self) -> u64 {
+        match *self {
+            Tag::DateTime       => 0,
+            Tag::Timestamp      => 1,
+            Tag::Bignum         => 2,
+            Tag::NegativeBignum => 3,
+            Tag::Decimal        => 4,
+            Tag::Bigfloat       => 5,
+            Tag::ToBase64Url    => 21,
+            Tag::ToBase64       => 22,
+            Tag::ToBase16       => 23,
+            Tag::Cbor           => 24,
+            Tag::Uri            => 32,
+            Tag::Base64Url      => 33,
+            Tag::Base64         => 34,
+            Tag::Regex          => 35,
+            Tag::Mime           => 36,
+            Tag::CborSelf       => 55799,
+            Tag::Unassigned(x)  => x
         }
     }
 }

@@ -668,8 +668,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         self.array(|d| {
-            let mut v = Vec::with_capacity(d.len());
-            for _ in 0 .. d.len() {
+            let mut v = Vec::with_capacity(d.limit());
+            for _ in 0 .. d.limit() {
                 v.push(try!(f(d)))
             }
             Ok(v)
@@ -755,7 +755,7 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
         DecoderSlice { decoder: d, limit: max, count: 0 }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn limit(&self) -> usize {
         self.limit
     }
 
@@ -887,6 +887,8 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
     }
 }
 
+// Tests ////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use rustc_serialize::hex::FromHex;
@@ -992,7 +994,7 @@ mod tests {
     #[test]
     fn array() {
         let result = decoder("83010203").array(|a| {
-            assert_eq!(3, a.len());
+            assert_eq!(3, a.limit());
             assert_eq!(Some(1u32), a.u32().ok());
             assert_eq!(Some(2u32), a.u32().ok());
             assert_eq!(Some(3u32), a.u32().ok());
@@ -1021,11 +1023,11 @@ mod tests {
     #[test]
     fn array_of_array() {
         let result = decoder("828301020383010203").array(|outer| {
-            let mut v = Vec::with_capacity(outer.len());
-            for _ in 0 .. outer.len() {
+            let mut v = Vec::with_capacity(outer.limit());
+            for _ in 0 .. outer.limit() {
                 v.push(outer.array(|inner| {
-                    let mut w = Vec::with_capacity(inner.len());
-                    for _ in 0 .. inner.len() {
+                    let mut w = Vec::with_capacity(inner.limit());
+                    for _ in 0 .. inner.limit() {
                         w.push(inner.u8().ok().unwrap())
                     }
                     Ok(w)
