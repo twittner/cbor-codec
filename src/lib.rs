@@ -13,3 +13,4 @@ extern crate rustc_serialize;
 pub mod types;
 pub mod values;
 pub mod decoder;
+pub mod encoder;
