@@ -11,4 +11,6 @@ repository  = "git@github.com:twittner/cbor-codec.git"
 byteorder = "> 0.3.0"
 
 [dev-dependencies]
-rustc-serialize = "> 0.3.0"
+rustc-serialize   = "> 0.3.0"
+quickcheck        = "> 0.2.0"
+quickcheck_macros = "> 0.2.0"
