@@ -529,17 +529,17 @@ impl<R: ReadBytesExt> Decoder<R> {
             }
             (Type::Tagged, a) => {
                 let tag = try!(self.kernel.unsigned(a).map(Tag::of));
+                if self.config.skip_tags {
+                    return self.value()
+                }
+                if self.nesting > self.config.max_nesting {
+                    return Err(DecodeError::TooNested)
+                }
                 self.nesting += 1;
-                let val =
-                    if self.config.skip_tags {
-                        try!(self.value())
-                    } else {
-                        let val = try!(self.value().map(|v| Value::Tagged(tag, Box::new(v))));
-                        if self.config.check_tags && !values::check(&val) {
-                            return Err(DecodeError::InvalidTag(val))
-                        }
-                        val
-                    };
+                let val = try!(self.value().map(|v| Value::Tagged(tag, Box::new(v))));
+                if self.config.check_tags && !values::check(&val) {
+                    return Err(DecodeError::InvalidTag(val))
+                }
                 self.nesting -= 1;
                 Ok(val)
             }
