@@ -8,8 +8,10 @@
 
 use byteorder::{self, BigEndian, WriteBytesExt};
 use std::io;
+use std::error::Error;
+use std::fmt;
 use types::{Tag, Type};
-use values::Simple;
+use values::{Bytes, Key, Simple, Text, Value};
 
 // Encoder Error Type ///////////////////////////////////////////////////////
 
@@ -22,7 +24,7 @@ pub enum EncodeError {
     /// The end of file has been encountered unexpectedly
     UnexpectedEOF,
     /// The provided `Simple` value is neither unassigned nor reserved
-    InvalidSimpleValue(u8),
+    InvalidSimpleValue(Simple),
     /// Too many elements have been written to this `EncoderSlice`.
     /// When encoding arrays or objects the length parameter has
     /// to match the number of elements to encode.
@@ -33,6 +35,36 @@ pub enum EncodeError {
     /// When encoding an object, the provided length parameter is greater
     /// than the number of elements which have actually been encoded.
     InvalidObjectLen,
+    /// Certain values (e.g. `Value::Break`) are not legal to encode as
+    /// independent units. Attempting to do so will trigger this error.
+    InvalidValue(Value)
+}
+
+impl fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            EncodeError::IoError(ref e)      => write!(f, "EncodeError: I/O error: {}", *e),
+            EncodeError::UnexpectedEOF       => write!(f, "EncodeError: unexpected end-of-file"),
+            EncodeError::EndOfEncoderSlice   => write!(f, "EncodeError: end of decoder slice"),
+            EncodeError::InvalidArrayLen     => write!(f, "EncodeError: not enough array elements"),
+            EncodeError::InvalidObjectLen    => write!(f, "EncodeError: not enough object elements"),
+            EncodeError::InvalidValue(ref v) => write!(f, "EncodeError: invalid value {:?}", v),
+            EncodeError::InvalidSimpleValue(ref s) => write!(f, "EncodeError: invalid simple value {:?}", s)
+        }
+    }
+}
+
+impl Error for EncodeError {
+    fn description(&self) -> &str {
+        "EncodeError"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            EncodeError::IoError(ref e) => Some(e),
+            _                           => None
+        }
+    }
 }
 
 impl From<byteorder::Error> for EncodeError {
@@ -60,6 +92,82 @@ pub struct Encoder<W> {
 impl<W: WriteBytesExt> Encoder<W> {
     pub fn new(w: W) -> Encoder<W> {
         Encoder { writer: w }
+    }
+
+    pub fn value(&mut self, x: &Value) -> EncodeResult {
+        match x {
+            &Value::Array(ref vv) => self.array(vv.len(), |mut e| {
+                for v in vv {
+                    try!(e.value(v))
+                }
+                Ok(())
+            }),
+            &Value::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
+            &Value::Bytes(Bytes::Chunks(ref bb)) => self.bytes_indef(|mut e| {
+                for b in bb {
+                    try!(e.bytes(&b[..]))
+                }
+                Ok(())
+            }),
+            &Value::Text(Text::Text(ref txt))   => self.text(txt),
+            &Value::Text(Text::Chunks(ref txt)) => self.text_indef(|mut e| {
+                for t in txt {
+                    try!(e.text(&t[..]))
+                }
+                Ok(())
+            }),
+            &Value::Map(ref m) => self.object(m.len(), |mut e| {
+                for (k, v) in m {
+                    try!(e.key(k));
+                    try!(e.value(v))
+                }
+                Ok(())
+            }),
+            &Value::Tagged(t, box ref val) => self.tagged(t, |mut e| e.value(val)),
+            &Value::Undefined => self.writer.write_u8(0b111_00000 | 23).map_err(From::from),
+            &Value::Null      => self.writer.write_u8(0b111_00000 | 22).map_err(From::from),
+            &Value::Simple(s) => self.simple(s),
+            &Value::Bool(b)   => self.bool(b),
+            &Value::U8(n)     => self.u8(n),
+            &Value::U16(n)    => self.u16(n),
+            &Value::U32(n)    => self.u32(n),
+            &Value::U64(n)    => self.u64(n),
+            &Value::F32(n)    => self.f32(n),
+            &Value::F64(n)    => self.f64(n),
+            &Value::I8(n)     => self.i8(n),
+            &Value::I16(n)    => self.i16(n),
+            &Value::I32(n)    => self.i32(n),
+            &Value::I64(n)    => self.i64(n),
+            &Value::Break     => Err(EncodeError::InvalidValue(Value::Break))
+        }
+    }
+
+    pub fn key(&mut self, x: &Key) -> EncodeResult {
+        match x {
+            &Key::Bool(b) => self.bool(b),
+            &Key::I8(n)   => self.i8(n),
+            &Key::I16(n)  => self.i16(n),
+            &Key::I32(n)  => self.i32(n),
+            &Key::I64(n)  => self.i64(n),
+            &Key::U8(n)   => self.u8(n),
+            &Key::U16(n)  => self.u16(n),
+            &Key::U32(n)  => self.u32(n),
+            &Key::U64(n)  => self.u64(n),
+            &Key::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
+            &Key::Bytes(Bytes::Chunks(ref bb)) => self.bytes_indef(|mut e| {
+                for b in bb {
+                    try!(e.bytes(&b[..]))
+                }
+                Ok(())
+            }),
+            &Key::Text(Text::Text(ref txt))   => self.text(txt),
+            &Key::Text(Text::Chunks(ref txt)) => self.text_indef(|mut e| {
+                for t in txt {
+                    try!(e.text(&t[..]))
+                }
+                Ok(())
+            })
+        }
     }
 
     pub fn u8(&mut self, x: u8) -> EncodeResult {
@@ -155,15 +263,17 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     pub fn simple(&mut self, x: Simple) -> EncodeResult {
-        let b = match x {
-            Simple::Unassigned(n) => n,
-            Simple::Reserved(n) => n
-        };
         let ref mut w = self.writer;
-        match b {
-            n @ 0...19    => w.write_u8(0b111_00000 | n).map_err(From::from),
-            n @ 24...0xFF => w.write_u8(0b111_00000 | 24).and(w.write_u8(n)).map_err(From::from),
-            _             => Err(EncodeError::InvalidSimpleValue(b))
+        match x {
+            Simple::Unassigned(n) => match n {
+                0...19 | 28...30 => w.write_u8(0b111_00000 | n).map_err(From::from),
+                32...255         => w.write_u8(0b111_00000 | 24).and(w.write_u8(n)).map_err(From::from),
+                _                => Err(EncodeError::InvalidSimpleValue(x))
+            },
+            Simple::Reserved(n) => match n {
+                0...31 => w.write_u8(0b111_00000 | 24).and(w.write_u8(n)).map_err(From::from),
+                _      => Err(EncodeError::InvalidSimpleValue(x))
+            }
         }
     }
 
@@ -321,6 +431,16 @@ impl<'r, W: WriteBytesExt + 'r> EncoderSlice<'r, W> {
 
     pub fn at_end(&self) -> bool {
         self.count == self.limit
+    }
+
+    pub fn value(&mut self, x: &Value) -> EncodeResult {
+        try!(self.check_and_bump_limit());
+        self.encoder.value(x)
+    }
+
+    pub fn key(&mut self, x: &Key) -> EncodeResult {
+        try!(self.check_and_bump_limit());
+        self.encoder.key(x)
     }
 
     pub fn u8(&mut self, x: u8) -> EncodeResult {

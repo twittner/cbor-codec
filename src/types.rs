@@ -80,26 +80,21 @@ impl Type {
             (4, a)           => Ok((Type::Array, a)),
             (5, a)           => Ok((Type::Object, a)),
             (6, a)           => Ok((Type::Tagged, a)),
-            (7, a @ 0...23)  => Ok(Type::simple(a)),
-            (7, 24)          => Ok(Type::simple(try!(r.read_u8()))),
+            (7, a @ 0...19)  => Ok((Type::Unassigned { major: 7, info: a }, a)),
+            (7, 20)          => Ok((Type::Bool, 20)),
+            (7, 21)          => Ok((Type::Bool, 21)),
+            (7, 22)          => Ok((Type::Null, 22)),
+            (7, 23)          => Ok((Type::Undefined, 23)),
+            (7, 24)          => match try!(r.read_u8()) {
+                a @ 0...31 => Ok((Type::Reserved { major: 7, info: a }, a)),
+                a          => Ok((Type::Unassigned { major: 7, info: a }, a))
+            },
             (7, 25)          => Ok((Type::Float16, 25)),
             (7, 26)          => Ok((Type::Float32, 26)),
             (7, 27)          => Ok((Type::Float64, 27)),
             (7, a @ 28...30) => Ok((Type::Unassigned { major: 7, info: a }, a)),
             (7, 31)          => Ok((Type::Break, 31)),
             (m, a)           => Ok((Type::Unknown { major: m, info: a }, a))
-        }
-    }
-
-    fn simple(b: u8) -> (Type, u8) {
-        match b {
-            a @ 0...19  => (Type::Unassigned { major: 7, info: a }, a),
-            20          => (Type::Bool, 20),
-            21          => (Type::Bool, 21),
-            22          => (Type::Null, 22),
-            23          => (Type::Undefined, 23),
-            a @ 24...31 => (Type::Reserved { major: 7, info: a }, a),
-            a           => (Type::Unassigned { major: 7, info: a }, a)
         }
     }
 }

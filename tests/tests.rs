@@ -3,23 +3,16 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-#![feature(box_patterns, num_bits_bytes)]
+#![feature(box_patterns, iter_arith, plugin)]
+#![plugin(quickcheck_macros)]
 
-extern crate byteorder;
-
-pub mod types;
-pub mod values;
-pub mod decoder;
-pub mod encoder;
-
-#[cfg(test)]
+extern crate cbor;
+extern crate quickcheck;
+extern crate rand;
 extern crate rustc_serialize;
 
-#[cfg(feature="arbitraries")]
-extern crate quickcheck;
+mod util;
+mod properties;
 
 #[cfg(feature="arbitraries")]
-extern crate rand;
-
-#[cfg(feature="arbitraries")]
-pub mod arbitraries;
+mod values;

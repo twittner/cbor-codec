@@ -14,10 +14,10 @@
 
 use byteorder::{self, BigEndian, ReadBytesExt};
 use std::{u64, usize};
-use std::collections::{HashMap, LinkedList};
+use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
-use std::fmt::Debug;
-use std::hash::Hash;
+use std::error::Error;
+use std::fmt::{self, Debug};
 use std::io;
 use std::string;
 use types::{Tag, Type};
@@ -107,6 +107,37 @@ impl DecodeError {
         match *self {
             DecodeError::UnexpectedType { datatype: Type::Break, .. } => true,
             _ => false
+        }
+    }
+}
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            DecodeError::DuplicateKey(ref k) => write!(f, "DecodeError: duplicate key: {:?}", *k),
+            DecodeError::EndOfDecoderSlice   => write!(f, "DecodeError: end of decoder slice"),
+            DecodeError::InvalidKey(ref k)   => write!(f, "DecodeError: unsuitable map key: {:?}", *k),
+            DecodeError::InvalidTag(ref v)   => write!(f, "DecodeError: value does not match tag: {:?}", *v),
+            DecodeError::InvalidUtf8(ref e)  => write!(f, "DecodeError: Invalid UTF-8 encoding: {}", *e),
+            DecodeError::IoError(ref e)      => write!(f, "DecodeError: I/O error: {}", *e),
+            DecodeError::TooNested           => write!(f, "DecodeError: value is too nested"),
+            DecodeError::UnexpectedEOF       => write!(f, "DecodeError: unexpected end-of-file"),
+            DecodeError::TooLong{max:m, actual:a} => write!(f, "DecodeError: value is too long {} (max={})", a, m),
+            DecodeError::UnexpectedType{datatype:t, info:i} => write!(f, "DecodeError: unexpected type {:?} (info={})", t, i)
+        }
+    }
+}
+
+impl Error for DecodeError {
+    fn description(&self) -> &str {
+        "DecodeError"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            DecodeError::IoError(ref e)     => Some(e),
+            DecodeError::InvalidUtf8(ref e) => Some(e),
+            _                               => None
         }
     }
 }
@@ -482,7 +513,7 @@ impl<R: ReadBytesExt> Decoder<R> {
                     return Err(DecodeError::TooNested)
                 }
                 let mut i = 0u64;
-                let mut m = HashMap::new();
+                let mut m = BTreeMap::new();
                 loop {
                     i += 1;
                     if i > self.config.max_size_map as u64 {
@@ -515,7 +546,7 @@ impl<R: ReadBytesExt> Decoder<R> {
                     return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: len })
                 }
                 let n = len as usize;
-                let mut m = HashMap::with_capacity(n);
+                let mut m = BTreeMap::new();
                 for _ in 0 .. n {
                     self.nesting += 1;
                     let key = try!(self.key());
@@ -678,16 +709,16 @@ impl<R: ReadBytesExt> Decoder<R> {
 
     /// CBOR maps are potentially heterogenous collections. Decoding these
     /// can be done through `Decoder::value()`. This method is for decoding
-    /// `HashMap`s. The provided callback function is applied to a `DecoderSlice`
+    /// `BTreeMap`s. The provided callback function is applied to a `DecoderSlice`
     /// to decode a single key-value pair. The whole map is returned as result.
-    pub fn hashmap<F, K, V>(&mut self, f: F) -> DecodeResult<HashMap<K, V>>
+    pub fn treemap<F, K, V>(&mut self, f: F) -> DecodeResult<BTreeMap<K, V>>
     where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
-          K: Eq + Hash + Debug + 'static
+          K: Ord + Debug + 'static
     {
         match try!(self.typeinfo()) {
             (Type::Object, 31) => { // indefinite length map
                 let mut i = 064;
-                let mut m = HashMap::new();
+                let mut m = BTreeMap::new();
                 loop {
                     i += 1;
                     if i > self.config.max_size_map as u64 {
@@ -711,7 +742,7 @@ impl<R: ReadBytesExt> Decoder<R> {
                 if len > self.config.max_size_map as u64 {
                     return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: len })
                 }
-                let mut m = HashMap::with_capacity(len as usize);
+                let mut m = BTreeMap::new();
                 for _ in 0 .. len {
                     let (k, v) = try!(f(&mut DecoderSlice::new(self, 2)));
                     if m.contains_key(&k) {
@@ -869,12 +900,12 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
         self.decoder.vector(f)
     }
 
-    pub fn hashmap<F, K, V>(&mut self, f: F) -> DecodeResult<HashMap<K, V>>
+    pub fn treemap<F, K, V>(&mut self, f: F) -> DecodeResult<BTreeMap<K, V>>
     where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
-          K: Eq + Hash + Debug + 'static
+          K: Ord + Debug + 'static
     {
         try!(self.check_and_bump_limit());
-        self.decoder.hashmap(f)
+        self.decoder.treemap(f)
     }
 
     #[inline(always)]
@@ -893,7 +924,7 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
 mod tests {
     use rustc_serialize::hex::FromHex;
     use std::{f32, f64};
-    use std::collections::{HashMap, LinkedList};
+    use std::collections::{BTreeMap, LinkedList};
     use std::io::Cursor;
     use super::*;
     use types::Tag;
@@ -1009,14 +1040,14 @@ mod tests {
     }
 
     #[test]
-    fn hashmap() {
-        let mut map = HashMap::new();
+    fn treemap() {
+        let mut map = BTreeMap::new();
         map.insert(String::from("a"), 1u8);
         map.insert(String::from("b"), 2u8);
         map.insert(String::from("c"), 3u8);
         assert_eq!(
             Some(map),
-            decoder("a3616101616202616303").hashmap(|d| Ok((try!(d.text()), try!(d.u8())))).ok()
+            decoder("a3616101616202616303").treemap(|d| Ok((try!(d.text()), try!(d.u8())))).ok()
         )
     }
 

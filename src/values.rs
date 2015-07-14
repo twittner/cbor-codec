@@ -6,13 +6,13 @@
 //! This module defines the generic `Value` AST as well as
 //! several  other types to represent CBOR values.
 //! A `ValueDecoder` can be used to deconstruct and traverse
-//! a `Value.
+//! a `Value`.
 
-use std::collections::{HashMap, LinkedList};
+use std::collections::{BTreeMap, LinkedList};
 use types::Tag;
 
 /// The generic CBOR representation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Value {
     Array(Vec<Value>),
     Bool(bool),
@@ -24,7 +24,7 @@ pub enum Value {
     I16(i16),
     I32(i32),
     I64(i64),
-    Map(HashMap<Key, Value>),
+    Map(BTreeMap<Key, Value>),
     Null,
     Simple(Simple),
     Tagged(Tag, Box<Value>),
