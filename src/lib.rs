@@ -12,6 +12,9 @@ pub mod values;
 pub mod decoder;
 pub mod encoder;
 
+pub use decoder::{Decoder, DecodeError, DecodeResult, Config};
+pub use encoder::{Encoder, EncodeError, EncodeResult};
+
 #[cfg(test)]
 extern crate rustc_serialize;
 
