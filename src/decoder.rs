@@ -51,6 +51,16 @@ pub struct Config {
     pub check_tags: bool
 }
 
+const DEFAULT_CONFIG: Config = Config
+    { max_len_array: 1000
+    , max_len_bytes: 0x500000
+    , max_len_text: 0x500000
+    , max_size_map: 1000
+    , max_nesting: 16
+    , skip_tags: false
+    , check_tags: true
+    };
+
 impl Config {
     /// Create default configuration with
     ///
@@ -61,17 +71,7 @@ impl Config {
     /// - `max_nesting` = 16
     /// - `skip_tags` = false
     /// - `check_tags` = true
-    pub fn default() -> Config {
-        Config {
-            max_len_array: 1000,
-            max_len_bytes: 0x500000,
-            max_len_text: 0x500000,
-            max_size_map: 1000,
-            max_nesting: 16,
-            skip_tags: false,
-            check_tags: true
-        }
-    }
+    pub fn default() -> Config { DEFAULT_CONFIG }
 }
 
 // Decode Error Type ////////////////////////////////////////////////////////
