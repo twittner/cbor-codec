@@ -17,6 +17,7 @@ use std::{u64, usize};
 use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
 use std::error::Error;
+use std::f32;
 use std::fmt::{self, Debug};
 use std::io;
 use std::string;
@@ -278,6 +279,24 @@ impl<R: ReadBytesExt> Kernel<R> {
         }
     }
 
+    pub fn f16(&mut self, ti: &TypeInfo) -> DecodeResult<f32> {
+        match ti.0 {
+            Type::Float16 => {
+                // Copied from RFC 7049 Appendix D:
+                let half  = try!(self.reader.read_u16::<BigEndian>());
+                let exp   = half >> 10 & 0x1F;
+                let mant  = half & 0x3FF;
+                let value = match exp {
+                    0  => f32::ldexp(mant as f32, -24),
+                    31 => if mant == 0 { f32::INFINITY } else { f32::NAN },
+                    _  => f32::ldexp(mant as f32 + 1024.0, exp as isize - 25)
+                };
+                Ok(if half & 0x8000 == 0 { value } else { - value })
+            }
+            _             => unexpected_type(ti)
+        }
+    }
+
     pub fn f32(&mut self, ti: &TypeInfo) -> DecodeResult<f32> {
         match ti.0 {
             Type::Float32 => self.reader.read_f32::<BigEndian>().map_err(From::from),
@@ -390,6 +409,10 @@ impl<R: ReadBytesExt> Decoder<R> {
         self.typeinfo().and_then(|ti| self.kernel.i64(&ti))
     }
 
+    pub fn f16(&mut self) -> DecodeResult<f32> {
+        self.typeinfo().and_then(|ti| self.kernel.f16(&ti))
+    }
+
     pub fn f32(&mut self) -> DecodeResult<f32> {
         self.typeinfo().and_then(|ti| self.kernel.f32(&ti))
     }
@@ -404,25 +427,23 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// (if not disabled).
     pub fn value(&mut self) -> DecodeResult<Value> {
         match try!(self.kernel.typeinfo()) {
-            (Type::UInt8, n @ 0...23) => Ok(Value::U8(n)),
-            (Type::UInt8, 24)         => self.kernel.reader.read_u8().map(Value::U8).map_err(From::from),
-            (Type::UInt16, _)         => self.kernel.reader.read_u16::<BigEndian>().map(Value::U16).map_err(From::from),
-            (Type::UInt32, _)         => self.kernel.reader.read_u32::<BigEndian>().map(Value::U32).map_err(From::from),
-            (Type::UInt64, _)         => self.kernel.reader.read_u64::<BigEndian>().map(Value::U64).map_err(From::from),
-            (Type::Int8, n @ 0...23)  => Ok(Value::I8(-1 - n as i8)),
-            (Type::Int8, 24)          => self.kernel.reader.read_u8().map(|n| Value::I8(-1 - n as i8)).map_err(From::from),
-            (Type::Int16, _)          => self.kernel.reader.read_u16::<BigEndian>().map(|n| Value::I16(-1 - n as i16)).map_err(From::from),
-            (Type::Int32, _)          => self.kernel.reader.read_u32::<BigEndian>().map(|n| Value::I32(-1 - n as i32)).map_err(From::from),
-            (Type::Int64, _)          => self.kernel.reader.read_u64::<BigEndian>().map(|n| Value::I64(-1 - n as i64)).map_err(From::from),
-            (Type::Bool, 20)          => Ok(Value::Bool(false)),
-            (Type::Bool, 21)          => Ok(Value::Bool(true)),
-            (Type::Float16, _)        => panic!("Not implemented yet"), // TODO!
-            (Type::Float32, _)        => self.kernel.reader.read_f32::<BigEndian>().map(Value::F32).map_err(From::from),
-            (Type::Float64, _)        => self.kernel.reader.read_f64::<BigEndian>().map(Value::F64).map_err(From::from),
-            (Type::Null, _)           => Ok(Value::Null),
-            (Type::Undefined, _)      => Ok(Value::Undefined),
-            (Type::Break, _)          => Ok(Value::Break),
-            (Type::Bytes, 31)         => { // indefinite byte string
+            ti@(Type::UInt8, _)   => self.kernel.u8(&ti).map(Value::U8),
+            ti@(Type::UInt16, _)  => self.kernel.u16(&ti).map(Value::U16),
+            ti@(Type::UInt32, _)  => self.kernel.u32(&ti).map(Value::U32),
+            ti@(Type::UInt64, _)  => self.kernel.u64(&ti).map(Value::U64),
+            ti@(Type::Int8, _)    => self.kernel.i8(&ti).map(Value::I8),
+            ti@(Type::Int16, _)   => self.kernel.i16(&ti).map(Value::I16),
+            ti@(Type::Int32, _)   => self.kernel.i32(&ti).map(Value::I32),
+            ti@(Type::Int64, _)   => self.kernel.i64(&ti).map(Value::I64),
+            ti@(Type::Float16, _) => self.kernel.f16(&ti).map(Value::F32),
+            ti@(Type::Float32, _) => self.kernel.f32(&ti).map(Value::F32),
+            ti@(Type::Float64, _) => self.kernel.f64(&ti).map(Value::F64),
+            (Type::Bool, 20)      => Ok(Value::Bool(false)),
+            (Type::Bool, 21)      => Ok(Value::Bool(true)),
+            (Type::Null, _)       => Ok(Value::Null),
+            (Type::Undefined, _)  => Ok(Value::Undefined),
+            (Type::Break, _)      => Ok(Value::Break),
+            (Type::Bytes, 31)     => { // indefinite byte string
                 let mut i = 0u64;
                 let mut v = LinkedList::new();
                 loop {
@@ -845,6 +866,11 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
         self.decoder.i64()
     }
 
+    pub fn f16(&mut self) -> DecodeResult<f32> {
+        try!(self.check_and_bump_limit());
+        self.decoder.f16()
+    }
+
     pub fn f32(&mut self) -> DecodeResult<f32> {
         try!(self.check_and_bump_limit());
         self.decoder.f32()
@@ -958,6 +984,15 @@ mod tests {
 
     #[test]
     fn float() {
+        assert_eq!(Some(0.0), decoder("f90000").f16().ok());
+        assert_eq!(Some(-0.0), decoder("f98000").f16().ok());
+        assert_eq!(Some(1.0), decoder("f93c00").f16().ok());
+        assert_eq!(Some(1.5), decoder("f93e00").f16().ok());
+        assert_eq!(Some(65504.0), decoder("f97bff").f16().ok());
+        assert_eq!(Some(f32::INFINITY), decoder("f97c00").f16().ok());
+        assert_eq!(Some(-f32::INFINITY), decoder("f9fc00").f16().ok());
+        assert!(decoder("f97e00").f16().ok().unwrap().is_nan());
+
         assert_eq!(Some(100000.0), decoder("fa47c35000").f32().ok());
         assert_eq!(Some(3.4028234663852886e+38), decoder("fa7f7fffff").f32().ok());
         assert_eq!(Some(-4.1), decoder("fbc010666666666666").f64().ok());

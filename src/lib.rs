@@ -3,7 +3,7 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-#![feature(box_patterns, num_bits_bytes)]
+#![feature(box_patterns, float_extras, num_bits_bytes)]
 
 extern crate byteorder;
 
