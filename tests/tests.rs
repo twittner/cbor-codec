@@ -3,16 +3,18 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-#![feature(box_patterns, iter_arith, plugin)]
-#![plugin(quickcheck_macros)]
+#![feature(box_patterns, custom_derive, plugin)]
+#![plugin(quickcheck_macros, serde_macros)]
 
 extern crate cbor;
 extern crate quickcheck;
 extern crate rand;
 extern crate rustc_serialize;
+extern crate serde;
 
 mod util;
 mod properties;
+mod unit;
 
 #[cfg(feature="arbitraries")]
 mod values;

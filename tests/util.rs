@@ -5,6 +5,7 @@
 
 use cbor::encoder::{Encoder, EncodeResult};
 use cbor::decoder::{Config, Decoder};
+use cbor::values::Value;
 use std::io::Cursor;
 
 pub fn identity<F, G>(enc: F, dec: G) -> bool
@@ -18,4 +19,24 @@ where F: Fn(Encoder<&mut Cursor<Vec<u8>>>) -> EncodeResult,
     }
     buffer.set_position(0);
     dec(Decoder::new(Config::default(), &mut buffer))
+}
+
+pub fn as_u64(x: &Value) -> Option<u64> {
+    match x {
+        &Value::U8(n)  => Some(n as u64),
+        &Value::U16(n) => Some(n as u64),
+        &Value::U32(n) => Some(n as u64),
+        &Value::U64(n) => Some(n),
+        _              => None
+    }
+}
+
+pub fn as_i64(x: &Value) -> Option<i64> {
+    match x {
+        &Value::I8(n)  => Some(n as i64),
+        &Value::I16(n) => Some(n as i64),
+        &Value::I32(n) => Some(n as i64),
+        &Value::I64(n) => Some(n),
+        _              => None
+    }
 }

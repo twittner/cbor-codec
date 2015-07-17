@@ -6,7 +6,7 @@
 use cbor::values::{Key, Value};
 use quickcheck::{QuickCheck, StdGen};
 use rand;
-use util::identity;
+use util::{as_i64, as_u64, identity};
 
 #[test]
 fn prop_identity_value() {
@@ -27,16 +27,6 @@ fn prop_identity_value() {
         .quickcheck(prop as fn(Value) -> bool)
 }
 
-fn as_u64(x: &Value) -> Option<u64> {
-    match x {
-        &Value::U8(n)  => Some(n as u64),
-        &Value::U16(n) => Some(n as u64),
-        &Value::U32(n) => Some(n as u64),
-        &Value::U64(n) => Some(n),
-        _              => None
-    }
-}
-
 fn key_as_u64(x: &Key) -> Option<u64> {
     match x {
         &Key::U8(n)  => Some(n as u64),
@@ -44,17 +34,6 @@ fn key_as_u64(x: &Key) -> Option<u64> {
         &Key::U32(n) => Some(n as u64),
         &Key::U64(n) => Some(n),
         _            => None
-    }
-}
-
-
-fn as_i64(x: &Value) -> Option<i64> {
-    match x {
-        &Value::I8(n)  => Some(n as i64),
-        &Value::I16(n) => Some(n as i64),
-        &Value::I32(n) => Some(n as i64),
-        &Value::I64(n) => Some(n),
-        _              => None
     }
 }
 
@@ -67,7 +46,6 @@ fn key_as_i64(x: &Key) -> Option<i64> {
         _            => None
     }
 }
-
 
 fn eq_pair(a: (&Key, &Value), b: (&Key, &Value)) -> bool {
     match (a.0, b.0) {

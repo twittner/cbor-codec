@@ -1008,6 +1008,7 @@ mod tests {
         assert_eq!(Some(-f32::INFINITY), decoder("faff800000").f32().ok());
         assert!(decoder("fa7fc00000").f32().ok().unwrap().is_nan());
 
+        assert_eq!(Some(1.0e+300), decoder("fb7e37e43c8800759c").f64().ok());
         assert_eq!(Some(f64::INFINITY), decoder("fb7ff0000000000000").f64().ok());
         assert_eq!(Some(-f64::INFINITY), decoder("fbfff0000000000000").f64().ok());
         assert!(decoder("fb7ff8000000000000").f64().ok().unwrap().is_nan())

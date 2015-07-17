@@ -30,6 +30,8 @@ quickcheck        = "> 0.2.0"
 quickcheck_macros = "> 0.2.0"
 rand              = "> 0.3.0"
 rustc-serialize   = "> 0.3.0"
+serde             = "> 0.4.0"
+serde_macros      = "> 0.4.0"
 
 [[test]]
 name = "tests"
