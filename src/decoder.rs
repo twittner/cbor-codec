@@ -100,7 +100,10 @@ pub enum DecodeError {
     /// The end of file has been encountered unexpectedly
     UnexpectedEOF,
     /// And unexpected type has been encountered
-    UnexpectedType { datatype: Type, info: u8 }
+    UnexpectedType { datatype: Type, info: u8 },
+    /// A break was encountered at some unexpected point while
+    /// decoding an indefinite object.
+    UnexpectedBreak
 }
 
 impl DecodeError {
@@ -123,6 +126,7 @@ impl fmt::Display for DecodeError {
             DecodeError::IoError(ref e)      => write!(f, "DecodeError: I/O error: {}", *e),
             DecodeError::TooNested           => write!(f, "DecodeError: value is too nested"),
             DecodeError::UnexpectedEOF       => write!(f, "DecodeError: unexpected end-of-file"),
+            DecodeError::UnexpectedBreak     => write!(f, "DecodeError: unexpected break"),
             DecodeError::TooLong{max:m, actual:a} => write!(f, "DecodeError: value is too long {} (max={})", a, m),
             DecodeError::UnexpectedType{datatype:t, info:i} => write!(f, "DecodeError: unexpected type {:?} (info={})", t, i)
         }
@@ -293,7 +297,7 @@ impl<R: ReadBytesExt> Kernel<R> {
                 };
                 Ok(if half & 0x8000 == 0 { value } else { - value })
             }
-            _             => unexpected_type(ti)
+            _ => unexpected_type(ti)
         }
     }
 
@@ -438,8 +442,7 @@ impl<R: ReadBytesExt> Decoder<R> {
             ti@(Type::Float16, _) => self.kernel.f16(&ti).map(Value::F32),
             ti@(Type::Float32, _) => self.kernel.f32(&ti).map(Value::F32),
             ti@(Type::Float64, _) => self.kernel.f64(&ti).map(Value::F64),
-            (Type::Bool, 20)      => Ok(Value::Bool(false)),
-            (Type::Bool, 21)      => Ok(Value::Bool(true)),
+            ti@(Type::Bool, _)    => self.kernel.bool(&ti).map(Value::Bool),
             (Type::Null, _)       => Ok(Value::Null),
             (Type::Undefined, _)  => Ok(Value::Undefined),
             (Type::Break, _)      => Ok(Value::Break),
@@ -501,12 +504,12 @@ impl<R: ReadBytesExt> Decoder<R> {
                     }
                     self.nesting += 1;
                     match self.value() {
-                        Ok(x) => v.push(x),
-                        Err(ref e) if e.is_break() => {
+                        Ok(Value::Break) => {
                             self.nesting -= 1;
                             break
                         }
-                        e => return e
+                        Ok(x) => v.push(x),
+                        e     => return e
                     }
                     self.nesting -= 1;
                 }
@@ -546,9 +549,12 @@ impl<R: ReadBytesExt> Decoder<R> {
                             if m.contains_key(&key) {
                                 return Err(DecodeError::DuplicateKey(Box::new(key)))
                             }
-                            m.insert(key, try!(self.value()));
+                            match try!(self.value()) {
+                                Value::Break => return Err(DecodeError::UnexpectedBreak),
+                                value        => { m.insert(key, value); }
+                            }
                         }
-                        Err(ref e) if e.is_break() => {
+                        Err(DecodeError::InvalidKey(Value::Break)) => {
                             self.nesting -= 1;
                             break
                         }
@@ -699,7 +705,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         match try!(self.typeinfo()) {
-            (Type::Array, a) => {
+            (Type::Array, 31) => unexpected_type(&(Type::Array, 31)),
+            (Type::Array,  a) => {
                 let len = try!(self.kernel.unsigned(a));
                 if len > self.config.max_len_array as u64 {
                     return Err(DecodeError::TooLong { max: self.config.max_len_array, actual: len })
@@ -953,7 +960,7 @@ mod tests {
     use std::collections::{BTreeMap, LinkedList};
     use std::io::Cursor;
     use super::*;
-    use types::Tag;
+    use types::{Tag, Type};
     use values::{Key, Simple, Text, Value, ValueDecoder};
 
     #[test]
@@ -1055,6 +1062,17 @@ mod tests {
         let def: Option<u8> = Some(1);
         assert_eq!(Some(undef), decoder("f7").def(|d| d.u8()).ok());
         assert_eq!(Some(def), decoder("01").def(|d| d.u8()).ok())
+    }
+
+    #[test]
+    fn empty_arrays() {
+        assert_eq!(Some(Value::Array(vec![])), decoder("9fff").value().ok());
+
+        // Indefinite arrays not supported in direct decoding.
+        match decoder("9fff").array(|_| Ok(())) {
+            Err(DecodeError::UnexpectedType { datatype: Type::Array, info: 31}) => (),
+            other => panic!("unexcted result: {:?}", other)
+        }
     }
 
     #[test]
