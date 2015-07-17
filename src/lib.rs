@@ -17,12 +17,3 @@ pub use encoder::{Encoder, EncodeError, EncodeResult};
 
 #[cfg(test)]
 extern crate rustc_serialize;
-
-#[cfg(feature="arbitraries")]
-extern crate quickcheck;
-
-#[cfg(feature="arbitraries")]
-extern crate rand;
-
-#[cfg(feature="arbitraries")]
-pub mod arbitraries;

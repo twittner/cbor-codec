@@ -12,9 +12,7 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate serde;
 
-mod util;
-mod properties;
 mod unit;
-
-#[cfg(feature="arbitraries")]
-mod values;
+mod properties;
+mod util;
+mod arbitrary;

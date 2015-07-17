@@ -6,6 +6,8 @@
 use cbor::values::{Bytes, Text, Value};
 use util::identity;
 
+mod value;
+
 #[quickcheck]
 fn identity_u8(x: u8) -> bool {
     identity(|mut e| e.u8(x), |mut d| d.u8().unwrap() == x)
