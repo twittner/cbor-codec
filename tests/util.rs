@@ -7,14 +7,15 @@ use cbor::encoder::{Encoder, EncodeResult};
 use cbor::decoder::{Config, Decoder};
 use std::io::Cursor;
 
-pub fn identity<F, G>(len: usize, enc: F, dec: G) -> bool
-where F: Fn(Encoder<Cursor<&mut [u8]>>) -> EncodeResult,
-      G: Fn(Decoder<Cursor<&[u8]>>) -> bool
+pub fn identity<F, G>(enc: F, dec: G) -> bool
+where F: Fn(Encoder<&mut Cursor<Vec<u8>>>) -> EncodeResult,
+      G: Fn(Decoder<&mut Cursor<Vec<u8>>>) -> bool
 {
-    let mut buffer = vec![0u8; len];
-    match enc(Encoder::new(Cursor::new(&mut buffer[..]))) {
+    let mut buffer = Cursor::new(Vec::new());
+    match enc(Encoder::new(&mut buffer)) {
         Ok(_)  => (),
         Err(e) => panic!("encoder failure: {:?}", e)
     }
-    dec(Decoder::new(Config::default(), Cursor::new(&buffer)))
+    buffer.set_position(0);
+    dec(Decoder::new(Config::default(), &mut buffer))
 }

@@ -8,63 +8,62 @@ use util::identity;
 
 #[quickcheck]
 fn identity_u8(x: u8) -> bool {
-    identity(2, |mut e| e.u8(x), |mut d| d.u8().unwrap() == x)
+    identity(|mut e| e.u8(x), |mut d| d.u8().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_u16(x: u16) -> bool {
-    identity(3, |mut e| e.u16(x), |mut d| d.u16().unwrap() == x)
+    identity(|mut e| e.u16(x), |mut d| d.u16().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_u32(x: u32) -> bool {
-    identity(5, |mut e| e.u32(x), |mut d| d.u32().unwrap() == x)
+    identity(|mut e| e.u32(x), |mut d| d.u32().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_u64(x: u64) -> bool {
-    identity(9, |mut e| e.u64(x), |mut d| d.u64().unwrap() == x)
+    identity(|mut e| e.u64(x), |mut d| d.u64().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i8(x: i8) -> bool {
-    identity(2, |mut e| e.i8(x), |mut d| d.i8().unwrap() == x)
+    identity(|mut e| e.i8(x), |mut d| d.i8().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i16(x: i16) -> bool {
-    identity(3, |mut e| e.i16(x), |mut d| d.i16().unwrap() == x)
+    identity(|mut e| e.i16(x), |mut d| d.i16().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i32(x: i32) -> bool {
-    identity(5, |mut e| e.i32(x), |mut d| d.i32().unwrap() == x)
+    identity(|mut e| e.i32(x), |mut d| d.i32().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i64(x: i64) -> bool {
-    identity(9, |mut e| e.i64(x), |mut d| d.i64().unwrap() == x)
+    identity(|mut e| e.i64(x), |mut d| d.i64().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_f32(x: f32) -> bool {
-    identity(5, |mut e| e.f32(x), |mut d| d.f32().unwrap() == x)
+    identity(|mut e| e.f32(x), |mut d| d.f32().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_f64(x: f64) -> bool {
-    identity(9, |mut e| e.f64(x), |mut d| d.f64().unwrap() == x)
+    identity(|mut e| e.f64(x), |mut d| d.f64().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_bytes(x: Vec<u8>) -> bool {
-    identity(9 + x.len(), |mut e| e.bytes(&x[..]), |mut d| d.bytes().unwrap() == x)
+    identity(|mut e| e.bytes(&x[..]), |mut d| d.bytes().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_bytes_stream(x: Vec<Vec<u8>>) -> bool {
-    let len = 2 + x.iter().map(|v| 9 + v.len()).sum::<usize>();
-    identity(len, |mut e| e.bytes_indef(|mut e| {
+    identity(|mut e| e.bytes_indef(|mut e| {
         for v in &x {
             try!(e.bytes(v))
         }
@@ -81,13 +80,12 @@ fn identity_bytes_stream(x: Vec<Vec<u8>>) -> bool {
 
 #[quickcheck]
 fn identity_text(x: String) -> bool {
-    identity(9 + x.len(), |mut e| e.text(&x[..]), |mut d| d.text().unwrap() == x)
+    identity(|mut e| e.text(&x[..]), |mut d| d.text().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_text_stream(x: Vec<String>) -> bool {
-    let len = 2 + x.iter().map(|v| 9 + v.len()).sum::<usize>();
-    identity(len, |mut e| e.text_indef(|mut e| {
+    identity(|mut e| e.text_indef(|mut e| {
         for v in &x {
             try!(e.text(&v[..]))
         }

@@ -11,7 +11,7 @@ use util::identity;
 #[test]
 fn prop_identity_value() {
     fn prop(x: Value) -> bool {
-        identity(256000, |mut e| e.value(&x), |mut d| {
+        identity(|mut e| e.value(&x), |mut d| {
             let y = d.value().unwrap();
             if eq(&x, &y) {
                 true
