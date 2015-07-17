@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use util::{as_i64, as_u64, identity};
 
 #[test]
-fn prop_identity_value() {
+fn identity_value() {
     fn prop(a: ArbitraryValue) -> bool {
         identity(|mut e| e.value(&a.0), |mut d| {
             let y = d.value().unwrap();
@@ -24,12 +24,12 @@ fn prop_identity_value() {
         })
     }
     QuickCheck::new()
-        .tests(1000)
+        .tests(100)
         .gen(StdGen::new(rand::thread_rng(), 32))
         .quickcheck(prop as fn(ArbitraryValue) -> bool)
 }
 
-fn eq(a: &Value, b: &Value) -> bool {
+pub fn eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (&Value::Array(ref x), &Value::Array(ref y)) => x.iter().zip(y.iter()).all(|(vx, vy)| eq(vx, vy)),
         (&Value::Bool(x), &Value::Bool(y))           => x == y,

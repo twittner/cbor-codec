@@ -5,10 +5,12 @@
 
 use cbor::{Config, Decoder};
 use cbor::values::{Key, Text, Value};
+use properties::value;
 use rustc_serialize::base64::FromBase64;
 use serde::json;
 use serde::json::de::from_reader;
 use std::{f32, f64};
+use std::collections::BTreeMap;
 use std::fs::File;
 use util;
 
@@ -19,6 +21,17 @@ struct TestVector {
     roundtrip: bool,
     decoded: Option<json::Value>,
     diagnostic: Option<json::Value>
+}
+
+#[test]
+#[should_panic(expected="DuplicateKey")] // FIXME!
+fn duplicate_key() {
+    let mut map = BTreeMap::new();
+    map.insert(Key::U8(42), Value::Bool(true));
+    map.insert(Key::U32(42), Value::Bool(false));
+    let val = Value::Map(map);
+    let res = util::identity(|mut e| e.value(&val), |mut d| value::eq(&val, &d.value().unwrap()));
+    assert!(res)
 }
 
 #[test]

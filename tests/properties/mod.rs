@@ -6,7 +6,7 @@
 use cbor::values::{Bytes, Text, Value};
 use util::identity;
 
-mod value;
+pub mod value;
 
 #[quickcheck]
 fn identity_u8(x: u8) -> bool {
