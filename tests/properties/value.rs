@@ -57,48 +57,10 @@ pub fn eq(a: &Value, b: &Value) -> bool {
 
 fn eq_map(x: &BTreeMap<Key, Value>, y: &BTreeMap<Key, Value>) -> bool {
     for (k, v) in x {
-        let ok = match k {
-            &Key::I16(x) =>
-                y.get(k)
-                 .or(y.get(&Key::I8(x as i8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            &Key::I32(x) =>
-                y.get(k)
-                 .or(y.get(&Key::I16(x as i16)))
-                 .or(y.get(&Key::I8(x as i8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            &Key::I64(x) =>
-                y.get(k)
-                 .or(y.get(&Key::I32(x as i32)))
-                 .or(y.get(&Key::I16(x as i16)))
-                 .or(y.get(&Key::I8(x as i8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            &Key::U16(x) =>
-                y.get(k)
-                 .or(y.get(&Key::U8(x as u8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            &Key::U32(x) =>
-                y.get(k)
-                 .or(y.get(&Key::U16(x as u16)))
-                 .or(y.get(&Key::U8(x as u8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            &Key::U64(x) =>
-                y.get(k)
-                 .or(y.get(&Key::U32(x as u32)))
-                 .or(y.get(&Key::U16(x as u16)))
-                 .or(y.get(&Key::U8(x as u8)))
-                 .map(|w| eq(v, w))
-                 .unwrap_or(false),
-            _ => y.get(k).map(|w| eq(v, w)).unwrap_or(false)
-        };
-        if !ok {
-            return false
+        match y.get(k) {
+            Some(ref w) => if !eq(v, w) { return false },
+            None        => return false
         }
-    }
+    };
     true
 }
