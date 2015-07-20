@@ -969,7 +969,7 @@ mod tests {
     use std::io::Cursor;
     use super::*;
     use types::{Tag, Type};
-    use values::{Key, Simple, Text, Value, ValueDecoder};
+    use values::{Key, Simple, Value, ValueDecoder};
 
     #[test]
     fn unsigned() {
@@ -1135,7 +1135,7 @@ mod tests {
     fn object() {
         let v = decoder("a2616101028103").value().ok().unwrap();
         let d = ValueDecoder::new(&v);
-        assert_eq!(Some(1), d.get(Key::Text(Text::Text(String::from("a")))).u8());
+        assert_eq!(Some(1), d.field("a").u8());
         assert_eq!(Some(3), d.get(Key::U8(2)).at(0).u8())
     }
 

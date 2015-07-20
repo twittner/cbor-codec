@@ -111,6 +111,10 @@ impl<'r> ValueDecoder<'r> {
         }
     }
 
+    pub fn field(&self, s: &str) -> ValueDecoder<'r> {
+        self.get(Key::Text(Text::Text(String::from(s))))
+    }
+
     pub fn value(&self) -> Option<&Value> {
         self.value
     }

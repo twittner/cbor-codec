@@ -3,6 +3,8 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
+//! CBOR (RFC 7049) encoder and decoder implementations.
+
 #![feature(box_patterns, float_extras, num_bits_bytes)]
 
 extern crate byteorder;
