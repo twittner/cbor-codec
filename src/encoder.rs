@@ -94,6 +94,10 @@ impl<W: WriteBytesExt> Encoder<W> {
         Encoder { writer: w }
     }
 
+    pub fn into_writer(self) -> W {
+        self.writer
+    }
+
     pub fn value(&mut self, x: &Value) -> EncodeResult {
         match x {
             &Value::Array(ref vv) => self.array(vv.len(), |mut e| {
@@ -283,8 +287,8 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite byte string encoding. (RFC 7049 section 2.2.2)
-    pub fn bytes_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(BytesEncoder<W>) -> EncodeResult
+    pub fn bytes_indef<F>(&mut self, mut f: F) -> EncodeResult
+    where F: FnMut(BytesEncoder<W>) -> EncodeResult
     {
         try!(self.writer.write_u8(0b010_11111));
         try!(f(BytesEncoder::new(self)));
@@ -297,16 +301,16 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite string encoding. (RFC 7049 section 2.2.2)
-    pub fn text_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(TextEncoder<W>) -> EncodeResult
+    pub fn text_indef<F>(&mut self, mut f: F) -> EncodeResult
+    where F: FnMut(TextEncoder<W>) -> EncodeResult
     {
         try!(self.writer.write_u8(0b011_11111));
         try!(f(TextEncoder::new(self)));
         self.writer.write_u8(0b111_11111).map_err(From::from)
     }
 
-    pub fn opt<F, A>(&mut self, x: Option<A>, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>, &A) -> EncodeResult
+    pub fn opt<F, A>(&mut self, x: Option<A>, mut f: F) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>, &A) -> EncodeResult
     {
         match x {
             Some(ref a) => f(self, a),
@@ -314,14 +318,14 @@ impl<W: WriteBytesExt> Encoder<W> {
         }
     }
 
-    pub fn tagged<F>(&mut self, x: Tag, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    pub fn tagged<F>(&mut self, x: Tag, mut f: F) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         self.type_len(Type::Tagged, x.to()).and(f(self))
     }
 
-    pub fn array<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: Fn(&mut EncoderSlice<W>) -> EncodeResult
+    pub fn array<F>(&mut self, len: usize, mut f: F) -> EncodeResult
+    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
     {
         try!(self.type_len(Type::Array, len as u64));
         let mut eslice = EncoderSlice::new(self, len);
@@ -334,16 +338,16 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite array encoding. (RFC 7049 section 2.2.1)
-    pub fn array_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    pub fn array_indef<F>(&mut self, mut f: F) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         try!(self.writer.write_u8(0b100_11111));
         try!(f(self));
         self.writer.write_u8(0b100_11111).map_err(From::from)
     }
 
-    pub fn object<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: Fn(&mut EncoderSlice<W>) -> EncodeResult
+    pub fn object<F>(&mut self, len: usize, mut f: F) -> EncodeResult
+    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
     {
         try!(self.type_len(Type::Object, len as u64));
         let mut eslice = EncoderSlice::new(self, len * 2);
@@ -356,8 +360,8 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite object encoding. (RFC 7049 section 2.2.1)
-    pub fn object_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    pub fn object_indef<F>(&mut self, mut f: F) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         try!(self.writer.write_u8(0b101_11111));
         try!(f(self)); // TODO: Ensure key-value pairs are written
@@ -509,7 +513,7 @@ impl<'r, W: WriteBytesExt + 'r> EncoderSlice<'r, W> {
     }
 
     pub fn bytes_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(BytesEncoder<W>) -> EncodeResult
+    where F: FnMut(BytesEncoder<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.bytes_indef(f)
@@ -521,49 +525,49 @@ impl<'r, W: WriteBytesExt + 'r> EncoderSlice<'r, W> {
     }
 
     pub fn text_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(TextEncoder<W>) -> EncodeResult
+    where F: FnMut(TextEncoder<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.text_indef(f)
     }
 
     pub fn opt<F, A>(&mut self, x: Option<A>, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>, &A) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>, &A) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.opt(x, f)
     }
 
     pub fn tagged<F>(&mut self, x: Tag, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.tagged(x, f)
     }
 
     pub fn array<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: Fn(&mut EncoderSlice<W>) -> EncodeResult
+    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.array(len, f)
     }
 
     pub fn array_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.array_indef(f)
     }
 
     pub fn object<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: Fn(&mut EncoderSlice<W>) -> EncodeResult
+    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.object(len, f)
     }
 
     pub fn object_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: Fn(&mut Encoder<W>) -> EncodeResult
+    where F: FnMut(&mut Encoder<W>) -> EncodeResult
     {
         try!(self.check_and_bump_limit());
         self.encoder.object_indef(f)
@@ -722,8 +726,8 @@ mod tests {
         }))
     }
 
-    fn encoded<F>(expected: &str, f: F)
-    where F: Fn(Encoder<Cursor<&mut [u8]>>) -> EncodeResult
+    fn encoded<F>(expected: &str, mut f: F)
+    where F: FnMut(Encoder<Cursor<&mut [u8]>>) -> EncodeResult
     {
         let mut buffer = vec![0u8; 128];
         assert!(f(Encoder::new(Cursor::new(&mut buffer[..]))).is_ok());

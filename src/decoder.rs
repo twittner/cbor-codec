@@ -187,6 +187,10 @@ impl<R: ReadBytesExt> Kernel<R> {
         Kernel { reader: r }
     }
 
+    pub fn into_reader(self) -> R {
+        self.reader
+    }
+
     pub fn typeinfo(&mut self) -> DecodeResult<TypeInfo> {
         Type::read(&mut self.reader).map_err(From::from)
     }
@@ -656,8 +660,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// Decode a `Tag` and pass it together with a `DecoderSlice` to the
     /// given callback function. If no tag is found an `UnexpectedType`
     /// error is returned.
-    pub fn tagged<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: Fn(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
+    pub fn tagged<F, A>(&mut self, mut f: F) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
     {
         match try!(self.kernel.typeinfo()) {
             (Type::Tagged, i) => {
@@ -670,8 +674,8 @@ impl<R: ReadBytesExt> Decoder<R> {
 
     /// Decode an optional value, i.e. return either `None` if a CBOR `Null`
     /// is found, or the actual value wrapped in `Some`.
-    pub fn opt<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    pub fn opt<F, A>(&mut self, mut f: F) -> DecodeResult<Option<A>>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         match f(&mut DecoderSlice::new(self, 1)) {
             Ok(x) => Ok(Some(x)),
@@ -683,8 +687,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// Decode a potentially undefined value (cf. RFC 7049 section 3.8).
     /// If a CBOR `Undefined` is encountered it is mapped to `None`,
     /// otherwise the value is wrapped in `Some`.
-    pub fn def<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    pub fn def<F, A>(&mut self, mut f: F) -> DecodeResult<Option<A>>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         match f(&mut DecoderSlice::new(self, 1)) {
             Ok(x) => Ok(Some(x)),
@@ -701,8 +705,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     ///
     /// Please note that indefinite arrays are not supported by this method
     /// (Consider using `Decoder::value()` for this use-case).
-    pub fn array<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    pub fn array<F, A>(&mut self, mut f: F) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         match try!(self.typeinfo()) {
             (Type::Array, 31) => unexpected_type(&(Type::Array, 31)),
@@ -723,8 +727,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     ///
     /// Please note that indefinite arrays are not supported by this method
     /// (Consider using `Decoder::value()` for this use-case).
-    pub fn vector<F, A>(&mut self, f: F) -> DecodeResult<Vec<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    pub fn vector<F, A>(&mut self, mut f: F) -> DecodeResult<Vec<A>>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         self.array(|d| {
             let mut v = Vec::with_capacity(d.limit());
@@ -739,8 +743,8 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// can be done through `Decoder::value()`. This method is for decoding
     /// `BTreeMap`s. The provided callback function is applied to a `DecoderSlice`
     /// to decode a single key-value pair. The whole map is returned as result.
-    pub fn treemap<F, K, V>(&mut self, f: F) -> DecodeResult<BTreeMap<K, V>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
+    pub fn treemap<F, K, V>(&mut self, mut f: F) -> DecodeResult<BTreeMap<K, V>>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
           K: Ord + Debug + 'static
     {
         match try!(self.typeinfo()) {
@@ -899,42 +903,42 @@ impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
     }
 
     pub fn tagged<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: Fn(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
     {
         try!(self.check_and_bump_limit());
         self.decoder.tagged(f)
     }
 
     pub fn opt<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         try!(self.check_and_bump_limit());
         self.decoder.opt(f)
     }
 
     pub fn def<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         try!(self.check_and_bump_limit());
         self.decoder.def(f)
     }
 
     pub fn array<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         try!(self.check_and_bump_limit());
         self.decoder.array(f)
     }
 
     pub fn vector<F, A>(&mut self, f: F) -> DecodeResult<Vec<A>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<A>
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
     {
         try!(self.check_and_bump_limit());
         self.decoder.vector(f)
     }
 
     pub fn treemap<F, K, V>(&mut self, f: F) -> DecodeResult<BTreeMap<K, V>>
-    where F: Fn(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
+    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
           K: Ord + Debug + 'static
     {
         try!(self.check_and_bump_limit());
