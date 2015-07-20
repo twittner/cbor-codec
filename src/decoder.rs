@@ -377,6 +377,10 @@ impl<R: ReadBytesExt> Decoder<R> {
         Decoder { kernel: Kernel::new(r), config: c, nesting: 0 }
     }
 
+    pub fn into_reader(self) -> R {
+        self.kernel.into_reader()
+    }
+
     pub fn simple(&mut self) -> DecodeResult<Simple> {
         self.typeinfo().and_then(|ti| self.kernel.simple(&ti))
     }
