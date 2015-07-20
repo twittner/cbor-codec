@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, LinkedList};
 use types::Tag;
 use values::{Value, Simple, Key, Bytes, Text};
 
-/// Generare a random `cbor::Value`.
+/// Generate a random `cbor::Value`.
 /// Mostly useful for quickcheck related tests.
 /// The parameter `level` denotes the maximum nesting of this value.
 pub fn gen_value<G: Gen>(level: u16, g: &mut G) -> Value {
