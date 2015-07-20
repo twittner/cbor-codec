@@ -3,15 +3,15 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::{Config, Decoder};
+use cbor::{Config, Decoder, DecodeError, Encoder};
 use cbor::values::{Key, Text, Value};
-use properties::value;
 use rustc_serialize::base64::FromBase64;
 use serde::json;
 use serde::json::de::from_reader;
 use std::{f32, f64};
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::io::Cursor;
 use util;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -24,14 +24,18 @@ struct TestVector {
 }
 
 #[test]
-#[should_panic(expected="DuplicateKey")] // FIXME!
 fn duplicate_key() {
     let mut map = BTreeMap::new();
     map.insert(Key::U8(42), Value::Bool(true));
     map.insert(Key::U32(42), Value::Bool(false));
-    let val = Value::Map(map);
-    let res = util::identity(|mut e| e.value(&val), |mut d| value::eq(&val, &d.value().unwrap()));
-    assert!(res)
+    let mut e = Encoder::new(Cursor::new(Vec::new()));
+    e.value(&Value::Map(map)).unwrap();
+    let mut buffer = e.into_writer();
+    buffer.set_position(0);
+    match Decoder::new(Config::default(), buffer).value() {
+        Err(DecodeError::DuplicateKey(_)) => (),
+        other                             => panic!("Unexpected: {:?}", other)
+    }
 }
 
 #[test]

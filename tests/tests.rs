@@ -12,7 +12,6 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate serde;
 
-mod unit;
 mod properties;
+mod unit;
 mod util;
-mod arbitrary;

@@ -6,7 +6,8 @@
 use cbor::values::{Bytes, Text, Value};
 use util::identity;
 
-pub mod value;
+#[cfg(feature="random")]
+mod value;
 
 #[quickcheck]
 fn identity_u8(x: u8) -> bool {

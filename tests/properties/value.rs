@@ -3,12 +3,21 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use arbitrary::ArbitraryValue;
+use cbor::random::gen_value;
 use cbor::values::{Key, Value};
-use quickcheck::{QuickCheck, StdGen};
+use quickcheck::{Arbitrary, Gen, QuickCheck, StdGen};
 use rand;
 use std::collections::BTreeMap;
 use util::{as_i64, as_u64, identity};
+
+#[derive(Clone, Debug)]
+pub struct ArbitraryValue(pub Value);
+
+impl Arbitrary for ArbitraryValue {
+    fn arbitrary<G: Gen>(g: &mut G) -> ArbitraryValue {
+        ArbitraryValue(gen_value(3, g))
+    }
+}
 
 #[test]
 fn identity_value() {
@@ -24,8 +33,8 @@ fn identity_value() {
         })
     }
     QuickCheck::new()
-        .tests(100)
-        .gen(StdGen::new(rand::thread_rng(), 32))
+        .tests(200)
+        .gen(StdGen::new(rand::thread_rng(), 255))
         .quickcheck(prop as fn(ArbitraryValue) -> bool)
 }
 

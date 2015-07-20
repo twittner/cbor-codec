@@ -7,13 +7,22 @@
 
 extern crate byteorder;
 
+#[cfg(test)]
+extern crate rustc_serialize;
+
+#[cfg(feature="random")]
+extern crate quickcheck;
+
+#[cfg(feature="random")]
+extern crate rand;
+
 pub mod types;
 pub mod values;
 pub mod decoder;
 pub mod encoder;
 
+#[cfg(feature="random")]
+pub mod random;
+
 pub use decoder::{Decoder, DecodeError, DecodeResult, Config};
 pub use encoder::{Encoder, EncodeError, EncodeResult};
-
-#[cfg(test)]
-extern crate rustc_serialize;

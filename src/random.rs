@@ -3,21 +3,19 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::types::Tag;
-use cbor::values::{Value, Simple, Key, Bytes, Text};
+//! Generate random `cbor::Value`s.
+//!
+//! This module is only available with `--features="random"`.
+
 use quickcheck::{Arbitrary, Gen};
 use rand::Rng;
 use std::collections::{BTreeMap, LinkedList};
+use types::Tag;
+use values::{Value, Simple, Key, Bytes, Text};
 
-#[derive(Clone, Debug)]
-pub struct ArbitraryValue(pub Value);
-
-impl Arbitrary for ArbitraryValue {
-    fn arbitrary<G: Gen>(g: &mut G) -> ArbitraryValue {
-        ArbitraryValue(gen_value(3, g))
-    }
-}
-
+/// Generare a random `cbor::Value`.
+/// Mostly useful for quickcheck related tests.
+/// The parameter `level` denotes the maximum nesting of this value.
 pub fn gen_value<G: Gen>(level: u16, g: &mut G) -> Value {
     match g.gen_range(0, 19) {
         0  => Value::Null,
@@ -71,17 +69,11 @@ fn gen_map<G: Gen>(level: u16, g: &mut G) -> BTreeMap<Key, Value> {
 }
 
 fn gen_key<G: Gen>(g: &mut G) -> Key {
-    match g.gen_range(0, 11) {
-        0 => Key::U8(g.gen()),
-        1 => Key::U16(g.gen()),
-        2 => Key::U32(g.gen()),
-        3 => Key::U64(g.gen()),
-        4 => Key::I8(g.gen()),
-        5 => Key::I16(g.gen()),
-        6 => Key::I32(g.gen()),
-        7 => Key::I64(g.gen()),
-        8 => Key::Text(gen_text(g)),
-        9 => Key::Bytes(gen_bytes(g)),
+    match g.gen_range(0, 5) {
+        0 => Key::U64(g.gen()),
+        1 => Key::I64(g.gen()),
+        2 => Key::Text(gen_text(g)),
+        3 => Key::Bytes(gen_bytes(g)),
         _ => Key::Bool(g.gen()),
     }
 }
@@ -170,3 +162,4 @@ fn gen_tagged<G: Gen>(g: &mut G) -> Value {
         _                     => Value::Tagged(Tag::Mime, Box::new(Value::Text(gen_text(g))))
     }
 }
+

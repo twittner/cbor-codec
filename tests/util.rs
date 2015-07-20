@@ -3,8 +3,7 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::encoder::{Encoder, EncodeResult};
-use cbor::decoder::{Config, Decoder};
+use cbor::{Config, Decoder, Encoder, EncodeResult};
 use cbor::values::Value;
 use std::io::Cursor;
 

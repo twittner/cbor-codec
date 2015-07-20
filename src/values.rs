@@ -61,6 +61,11 @@ pub enum Simple {
 
 /// CBOR allows heterogenous keys in objects. This enum unifies
 /// all currently allowed key types.
+///
+/// Please note that identical numeric values wrapped in different
+/// constructors (e.g. `U8(42)`, `U16(42)`) are *distinct* map keys
+/// but identical when encoded. An object encoded this way will
+/// trigger a `DecodeError::DuplicateKey` error when decoded again.
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum Key {
     Bool(bool),
