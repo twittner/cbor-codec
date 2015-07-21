@@ -21,12 +21,10 @@ use test::Bencher;
 fn mk_value(min: usize) -> Vec<u8> {
     let mut g = StdGen::new(thread_rng(), 255);
     let mut e = Encoder::new(Cursor::new(Vec::new()));
-    e.array(min, |e| {
-        for _ in 0 .. min {
-            try!(e.value(&gen_value(3, &mut g)))
-        }
-        Ok(())
-    }).unwrap();
+    e.array(min).unwrap();
+    for _ in 0 .. min {
+        e.value(&gen_value(3, &mut g)).unwrap()
+    }
     e.into_writer().into_inner()
 }
 

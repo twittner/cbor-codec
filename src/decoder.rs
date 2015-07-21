@@ -83,8 +83,6 @@ pub type DecodeResult<A> = Result<A, DecodeError>;
 pub enum DecodeError {
     /// An object contains the same key multiple times
     DuplicateKey(Box<Debug>),
-    /// The `DecoderSlice` has reached its end and can not go any further
-    EndOfDecoderSlice,
     /// The decoded `Value` can not serve as a `Key` in an object
     InvalidKey(Value),
     /// The type of `Value` is not what is expected for a `Tag`
@@ -106,12 +104,53 @@ pub enum DecodeError {
     UnexpectedBreak
 }
 
-impl DecodeError {
-    pub fn is_break(&self) -> bool {
-        match *self {
-            DecodeError::UnexpectedType { datatype: Type::Break, .. } => true,
-            _ => false
-        }
+/// When decoding an optional item, i.e. a `Null` value has to be
+/// considered, this function will map `Null` to `None` and any
+/// other value to `Some(value)`.
+pub fn opt<A>(r: DecodeResult<A>) -> DecodeResult<Option<A>> {
+    match r {
+        Ok(x)  => Ok(Some(x)),
+        Err(e) => if is_null(&e) { Ok(None) } else { Err(e) }
+    }
+}
+
+/// When decoding an item which may be `Undefined` this function
+/// will map `Undefined` to `None` and any other value to `Some(value)`.
+pub fn maybe<A>(r: DecodeResult<A>) -> DecodeResult<Option<A>> {
+    match r {
+        Ok(x)  => Ok(Some(x)),
+        Err(e) => if is_undefined(&e) { Ok(None) } else { Err(e) }
+    }
+}
+
+/// When decoding an indefinite item, every element item can be a `Break`
+/// value. By wrapping it in `or_break`, this case can be handled more
+/// conveniently.
+pub fn or_break<A>(r: DecodeResult<A>) -> DecodeResult<Option<A>> {
+    match r {
+        Ok(x)  => Ok(Some(x)),
+        Err(e) => if is_break(&e) { Ok(None) } else { Err(e) }
+    }
+}
+
+fn is_break(e: &DecodeError) -> bool {
+    match *e {
+        DecodeError::UnexpectedType { datatype: Type::Break, .. } => true,
+        _ => false
+    }
+}
+
+fn is_null(e: &DecodeError) -> bool {
+    match *e {
+        DecodeError::UnexpectedType { datatype: Type::Null, .. } => true,
+        _ => false
+    }
+}
+
+fn is_undefined(e: &DecodeError) -> bool {
+    match *e {
+        DecodeError::UnexpectedType { datatype: Type::Undefined, .. } => true,
+        _ => false
     }
 }
 
@@ -119,7 +158,6 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             DecodeError::DuplicateKey(ref k) => write!(f, "DecodeError: duplicate key: {:?}", *k),
-            DecodeError::EndOfDecoderSlice   => write!(f, "DecodeError: end of decoder slice"),
             DecodeError::InvalidKey(ref k)   => write!(f, "DecodeError: unsuitable map key: {:?}", *k),
             DecodeError::InvalidTag(ref v)   => write!(f, "DecodeError: value does not match tag: {:?}", *v),
             DecodeError::InvalidUtf8(ref e)  => write!(f, "DecodeError: Invalid UTF-8 encoding: {}", *e),
@@ -357,7 +395,6 @@ impl<R: ReadBytesExt> Kernel<R> {
     }
 }
 
-#[inline(always)]
 fn unexpected_type<A>(ti: &TypeInfo) -> DecodeResult<A> {
     Err(DecodeError::UnexpectedType { datatype: ti.0, info: ti.1 })
 }
@@ -466,7 +503,7 @@ impl<R: ReadBytesExt> Decoder<R> {
                             }
                             v.push_back(chunk)
                         }
-                        Err(ref e) if e.is_break() => break,
+                        Err(ref e) if is_break(e) => break,
                         Err(e) => return Err(e)
                     }
                 }
@@ -488,7 +525,7 @@ impl<R: ReadBytesExt> Decoder<R> {
                             }
                             v.push_back(chunk)
                         }
-                        Err(ref e) if e.is_break() => break,
+                        Err(ref e) if is_break(e) => break,
                         Err(e) => return Err(e)
                     }
                 }
@@ -635,10 +672,11 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// Decode a single byte string.
     ///
     /// Please note that indefinite byte strings are not supported by this
-    /// method (Consider using `Decoder::value()` for this use-case).
+    /// method (Consider using `Decoder::bytes_iter()` for this use-case).
     pub fn bytes(&mut self) -> DecodeResult<Vec<u8>> {
         match try!(self.typeinfo()) {
-            (Type::Bytes, i) => {
+            (Type::Bytes, 31) => unexpected_type(&(Type::Bytes, 31)),
+            (Type::Bytes,  i) => {
                 let max = self.config.max_len_bytes;
                 self.kernel.raw_data(i, max)
             }
@@ -646,13 +684,22 @@ impl<R: ReadBytesExt> Decoder<R> {
         }
     }
 
+    /// Decode an indefinite byte string.
+    pub fn bytes_iter(&mut self) -> DecodeResult<BytesIter<R>> {
+        match try!(self.typeinfo()) {
+            (Type::Bytes, 31) => Ok(BytesIter { decoder: self }),
+            ti                => unexpected_type(&ti)
+        }
+    }
+
     /// Decode a single UTF-8 encoded String.
     ///
     /// Please note that indefinite strings are not supported by this method
-    /// (Consider using `Decoder::value()` for this use-case).
+    /// (Consider using `Decoder::text_iter()` for this use-case).
     pub fn text(&mut self) -> DecodeResult<String> {
         match try!(self.typeinfo()) {
-            (Type::Text, i) => {
+            (Type::Text, 31) => unexpected_type(&(Type::Text, 31)),
+            (Type::Text,  i) => {
                 let max  = self.config.max_len_text;
                 let data = try!(self.kernel.raw_data(i, max));
                 String::from_utf8(data).map_err(From::from)
@@ -661,57 +708,29 @@ impl<R: ReadBytesExt> Decoder<R> {
         }
     }
 
-    /// Decode a `Tag` and pass it together with a `DecoderSlice` to the
-    /// given callback function. If no tag is found an `UnexpectedType`
-    /// error is returned.
-    pub fn tagged<F, A>(&mut self, mut f: F) -> DecodeResult<A>
-    where F: FnMut(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
-    {
+    /// Decode an indefinite string.
+    pub fn text_iter(&mut self) -> DecodeResult<TextIter<R>> {
+        match try!(self.typeinfo()) {
+            (Type::Text, 31) => Ok(TextIter { decoder: self }),
+            ti               => unexpected_type(&ti)
+        }
+    }
+
+    /// Decode a `Tag`.
+    /// If no tag is found an `UnexpectedType` error is returned.
+    pub fn tag(&mut self) -> DecodeResult<Tag> {
         match try!(self.kernel.typeinfo()) {
-            (Type::Tagged, i) => {
-                let tag = try!(self.kernel.unsigned(i).map(Tag::of));
-                f(&mut DecoderSlice::new(self, 1), tag)
-            }
-            ti => unexpected_type(&ti)
+            (Type::Tagged, i) => self.kernel.unsigned(i).map(Tag::of),
+            ti                => unexpected_type(&ti)
         }
     }
 
-    /// Decode an optional value, i.e. return either `None` if a CBOR `Null`
-    /// is found, or the actual value wrapped in `Some`.
-    pub fn opt<F, A>(&mut self, mut f: F) -> DecodeResult<Option<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        match f(&mut DecoderSlice::new(self, 1)) {
-            Ok(x) => Ok(Some(x)),
-            Err(DecodeError::UnexpectedType { datatype: Type::Null, .. }) => Ok(None),
-            Err(e) => Err(e)
-        }
-    }
-
-    /// Decode a potentially undefined value (cf. RFC 7049 section 3.8).
-    /// If a CBOR `Undefined` is encountered it is mapped to `None`,
-    /// otherwise the value is wrapped in `Some`.
-    pub fn def<F, A>(&mut self, mut f: F) -> DecodeResult<Option<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        match f(&mut DecoderSlice::new(self, 1)) {
-            Ok(x) => Ok(Some(x)),
-            Err(DecodeError::UnexpectedType { datatype: Type::Undefined, .. }) => Ok(None),
-            Err(e) => Err(e)
-        }
-    }
-
-    /// Decode a potentially heterogenous CBOR array. The provided function is
-    /// applied to a `DecoderSlice`, i.e. a decoder which can be used over the
-    /// entire array length but no further. Whatever the function returns
-    /// becomes the result of `array`. If you want to decode a homogenous array
-    /// you may consider using `vector` instead.
+    /// Decode the begin of an array. The length is returned unless it
+    /// exceeds the configured maximum.
     ///
     /// Please note that indefinite arrays are not supported by this method
     /// (Consider using `Decoder::value()` for this use-case).
-    pub fn array<F, A>(&mut self, mut f: F) -> DecodeResult<A>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
+    pub fn array(&mut self) -> DecodeResult<usize> {
         match try!(self.typeinfo()) {
             (Type::Array, 31) => unexpected_type(&(Type::Array, 31)),
             (Type::Array,  a) => {
@@ -719,76 +738,54 @@ impl<R: ReadBytesExt> Decoder<R> {
                 if len > self.config.max_len_array as u64 {
                     return Err(DecodeError::TooLong { max: self.config.max_len_array, actual: len })
                 }
-                f(&mut DecoderSlice::new(self, len as usize))
+                Ok(len as usize)
             }
             ti => unexpected_type(&ti)
         }
     }
 
-    /// Like `array`, but `f` is applied to the `DecoderSlice` for every
-    /// array element. `vector` aggregates the results in a `Vec` which is
-    /// returned on completion.
+    /// Decode the begin of an indefinite array.
+    /// After this one can continue decoding items, but a `Break` value
+    /// will be encountered at some unknown point.
     ///
-    /// Please note that indefinite arrays are not supported by this method
-    /// (Consider using `Decoder::value()` for this use-case).
-    pub fn vector<F, A>(&mut self, mut f: F) -> DecodeResult<Vec<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        self.array(|d| {
-            let mut v = Vec::with_capacity(d.limit());
-            for _ in 0 .. d.limit() {
-                v.push(try!(f(d)))
-            }
-            Ok(v)
-        })
+    /// (Consider using `or_break` around every decoding step within an
+    /// indefinite array to handle this case).
+    pub fn array_begin(&mut self) -> DecodeResult<()> {
+        match try!(self.typeinfo()) {
+            (Type::Array, 31) => Ok(()),
+            ti                => unexpected_type(&ti)
+        }
     }
 
-    /// CBOR maps are potentially heterogenous collections. Decoding these
-    /// can be done through `Decoder::value()`. This method is for decoding
-    /// `BTreeMap`s. The provided callback function is applied to a `DecoderSlice`
-    /// to decode a single key-value pair. The whole map is returned as result.
-    pub fn treemap<F, K, V>(&mut self, mut f: F) -> DecodeResult<BTreeMap<K, V>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
-          K: Ord + Debug + 'static
-    {
+    /// Decode the begin of an object. The size (number of key-value pairs)
+    /// is returned unless it exceeds the configured maximum.
+    ///
+    /// Please note that indefinite objects are not supported by this method
+    /// (Consider using `Decoder::value()` for this use-case).
+    pub fn object(&mut self) -> DecodeResult<usize> {
         match try!(self.typeinfo()) {
-            (Type::Object, 31) => { // indefinite length map
-                let mut i = 064;
-                let mut m = BTreeMap::new();
-                loop {
-                    i += 1;
-                    if i > self.config.max_size_map as u64 {
-                        return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: i })
-                    }
-                    match f(&mut DecoderSlice::new(self, 2)) {
-                        Ok((k, v)) => {
-                            if m.contains_key(&k) {
-                                return Err(DecodeError::DuplicateKey(Box::new(k)))
-                            }
-                            m.insert(k, v);
-                        }
-                        Err(ref e) if e.is_break() => break,
-                        Err(e) => return Err(e)
-                    }
-                }
-                Ok(m)
-            }
-            (Type::Object, a) => {
+            (Type::Object, 31) => unexpected_type(&(Type::Object, 31)),
+            (Type::Object,  a) => {
                 let len = try!(self.kernel.unsigned(a));
                 if len > self.config.max_size_map as u64 {
                     return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: len })
                 }
-                let mut m = BTreeMap::new();
-                for _ in 0 .. len {
-                    let (k, v) = try!(f(&mut DecoderSlice::new(self, 2)));
-                    if m.contains_key(&k) {
-                        return Err(DecodeError::DuplicateKey(Box::new(k)))
-                    }
-                    m.insert(k, v);
-                }
-                Ok(m)
+                Ok(len as usize)
             }
             ti => unexpected_type(&ti)
+        }
+    }
+
+    /// Decode the begin of an indefinite object.
+    /// After this one can continue decoding items, but a `Break` value
+    /// will be encountered at some unknown point.
+    ///
+    /// (Consider using `or_break` around every decoding step within an
+    /// indefinite object to handle this case).
+    pub fn object_begin(&mut self) -> DecodeResult<()> {
+        match try!(self.typeinfo()) {
+            (Type::Object, 31) => Ok(()),
+            ti                 => unexpected_type(&ti)
         }
     }
 
@@ -809,153 +806,39 @@ impl<R: ReadBytesExt> Decoder<R> {
     }
 }
 
-/// A `DecoderSlice` exposes the same API as `Decoder`, but is limited to
-/// a smaller ranger than the `Decoder` that constructed the `DecoderSlice`.
-pub struct DecoderSlice<'r, R: 'r> {
-    decoder: &'r mut Decoder<R>,
-    limit: usize,
-    count: usize
+// Iterators ////////////////////////////////////////////////////////////////
+
+/// Iterator over the chunks of an indefinite bytes item.
+pub struct BytesIter<'r, R: 'r> {
+    decoder: &'r mut Decoder<R>
 }
 
-impl<'r, R: ReadBytesExt + 'r> DecoderSlice<'r, R> {
-    pub fn new(d: &'r mut Decoder<R>, max: usize) -> DecoderSlice<'r, R> {
-        DecoderSlice { decoder: d, limit: max, count: 0 }
-    }
+impl<'r, R: 'r + ReadBytesExt> Iterator for BytesIter<'r, R> {
+    type Item = DecodeResult<Vec<u8>>;
 
-    pub fn limit(&self) -> usize {
-        self.limit
-    }
-
-    pub fn value(&mut self) -> DecodeResult<Value> {
-        try!(self.check_and_bump_limit());
-        self.decoder.value()
-    }
-
-    pub fn simple(&mut self) -> DecodeResult<Simple> {
-        try!(self.check_and_bump_limit());
-        self.decoder.simple()
-    }
-
-    pub fn bool(&mut self) -> DecodeResult<bool> {
-        try!(self.check_and_bump_limit());
-        self.decoder.bool()
-    }
-
-    pub fn u8(&mut self) -> DecodeResult<u8> {
-        try!(self.check_and_bump_limit());
-        self.decoder.u8()
-    }
-
-    pub fn u16(&mut self) -> DecodeResult<u16> {
-        try!(self.check_and_bump_limit());
-        self.decoder.u16()
-    }
-
-    pub fn u32(&mut self) -> DecodeResult<u32> {
-        try!(self.check_and_bump_limit());
-        self.decoder.u32()
-    }
-
-    pub fn u64(&mut self) -> DecodeResult<u64> {
-        try!(self.check_and_bump_limit());
-        self.decoder.u64()
-    }
-
-    pub fn i8(&mut self) -> DecodeResult<i8> {
-        try!(self.check_and_bump_limit());
-        self.decoder.i8()
-    }
-
-    pub fn i16(&mut self) -> DecodeResult<i16> {
-        try!(self.check_and_bump_limit());
-        self.decoder.i16()
-    }
-
-    pub fn i32(&mut self) -> DecodeResult<i32> {
-        try!(self.check_and_bump_limit());
-        self.decoder.i32()
-    }
-
-    pub fn i64(&mut self) -> DecodeResult<i64> {
-        try!(self.check_and_bump_limit());
-        self.decoder.i64()
-    }
-
-    pub fn f16(&mut self) -> DecodeResult<f32> {
-        try!(self.check_and_bump_limit());
-        self.decoder.f16()
-    }
-
-    pub fn f32(&mut self) -> DecodeResult<f32> {
-        try!(self.check_and_bump_limit());
-        self.decoder.f32()
-    }
-
-    pub fn f64(&mut self) -> DecodeResult<f64> {
-        try!(self.check_and_bump_limit());
-        self.decoder.f64()
-    }
-
-    pub fn bytes(&mut self) -> DecodeResult<Vec<u8>> {
-        try!(self.check_and_bump_limit());
-        self.decoder.bytes()
-    }
-
-    pub fn text(&mut self) -> DecodeResult<String> {
-        try!(self.check_and_bump_limit());
-        self.decoder.text()
-    }
-
-    pub fn tagged<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: FnMut(&mut DecoderSlice<R>, Tag) -> DecodeResult<A>
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.tagged(f)
-    }
-
-    pub fn opt<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.opt(f)
-    }
-
-    pub fn def<F, A>(&mut self, f: F) -> DecodeResult<Option<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.def(f)
-    }
-
-    pub fn array<F, A>(&mut self, f: F) -> DecodeResult<A>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.array(f)
-    }
-
-    pub fn vector<F, A>(&mut self, f: F) -> DecodeResult<Vec<A>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<A>
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.vector(f)
-    }
-
-    pub fn treemap<F, K, V>(&mut self, f: F) -> DecodeResult<BTreeMap<K, V>>
-    where F: FnMut(&mut DecoderSlice<R>) -> DecodeResult<(K, V)>,
-          K: Ord + Debug + 'static
-    {
-        try!(self.check_and_bump_limit());
-        self.decoder.treemap(f)
-    }
-
-    #[inline(always)]
-    fn check_and_bump_limit(&mut self) -> DecodeResult<()> {
-        if self.count >= self.limit {
-            return Err(DecodeError::EndOfDecoderSlice)
+    fn next(&mut self) -> Option<DecodeResult<Vec<u8>>> {
+        match or_break(self.decoder.bytes()) {
+            Ok(None)    => None,
+            Ok(Some(b)) => Some(Ok(b)),
+            Err(e)      => Some(Err(e))
         }
-        self.count += 1;
-        Ok(())
+    }
+}
+
+/// Iterator over the chunks of an indefinite text item.
+pub struct TextIter<'r, R: 'r> {
+    decoder: &'r mut Decoder<R>
+}
+
+impl<'r, R: 'r + ReadBytesExt> Iterator for TextIter<'r, R> {
+    type Item = DecodeResult<String>;
+
+    fn next(&mut self) -> Option<DecodeResult<String>> {
+        match or_break(self.decoder.text()) {
+            Ok(None)    => None,
+            Ok(Some(b)) => Some(Ok(b)),
+            Err(e)      => Some(Err(e))
+        }
     }
 }
 
@@ -1061,16 +944,16 @@ mod tests {
     fn option() {
         let none: Option<u8> = None;
         let some: Option<u8> = Some(1);
-        assert_eq!(Some(none), decoder("f6").opt(|d| d.u8()).ok());
-        assert_eq!(Some(some), decoder("01").opt(|d| d.u8()).ok())
+        assert_eq!(Some(none), opt(decoder("f6").u8()).ok());
+        assert_eq!(Some(some), opt(decoder("01").u8()).ok())
     }
 
     #[test]
     fn undefined() {
         let undef: Option<u8> = None;
         let def: Option<u8> = Some(1);
-        assert_eq!(Some(undef), decoder("f7").def(|d| d.u8()).ok());
-        assert_eq!(Some(def), decoder("01").def(|d| d.u8()).ok())
+        assert_eq!(Some(undef), maybe(decoder("f7").u8()).ok());
+        assert_eq!(Some(def), maybe(decoder("01").u8()).ok())
     }
 
     #[test]
@@ -1078,7 +961,7 @@ mod tests {
         assert_eq!(Some(Value::Array(vec![])), decoder("9fff").value().ok());
 
         // Indefinite arrays not supported in direct decoding.
-        match decoder("9fff").array(|_| Ok(())) {
+        match decoder("9fff").array() {
             Err(DecodeError::UnexpectedType { datatype: Type::Array, info: 31}) => (),
             other => panic!("unexcted result: {:?}", other)
         }
@@ -1086,53 +969,45 @@ mod tests {
 
     #[test]
     fn array() {
-        let result = decoder("83010203").array(|a| {
-            assert_eq!(3, a.limit());
-            assert_eq!(Some(1u32), a.u32().ok());
-            assert_eq!(Some(2u32), a.u32().ok());
-            assert_eq!(Some(3u32), a.u32().ok());
-            Ok(())
-        });
-        assert_eq!(Some(()), result.ok())
-    }
-
-    #[test]
-    fn vector() {
-        assert_eq!(Some(vec![1,2,3]), decoder("83010203").vector(|d| d.u32()).ok())
-    }
-
-    #[test]
-    fn treemap() {
-        let mut map = BTreeMap::new();
-        map.insert(String::from("a"), 1u8);
-        map.insert(String::from("b"), 2u8);
-        map.insert(String::from("c"), 3u8);
-        assert_eq!(
-            Some(map),
-            decoder("a3616101616202616303").treemap(|d| Ok((try!(d.text()), try!(d.u8())))).ok()
-        )
-    }
-
-    #[test]
-    fn array_of_array() {
-        let result = decoder("828301020383010203").array(|outer| {
-            let mut v = Vec::with_capacity(outer.limit());
-            for _ in 0 .. outer.limit() {
-                v.push(outer.array(|inner| {
-                    let mut w = Vec::with_capacity(inner.limit());
-                    for _ in 0 .. inner.limit() {
-                        w.push(inner.u8().ok().unwrap())
-                    }
-                    Ok(w)
-                }).ok().unwrap())
-            }
-            Ok(v)
-        });
-        assert_eq!(Some(vec![vec![1, 2, 3], vec![1, 2, 3]]), result.ok())
+        let mut d = decoder("83010203");
+        assert_eq!(3, d.array().unwrap());
+        assert_eq!(Some(1u32), d.u32().ok());
+        assert_eq!(Some(2u32), d.u32().ok());
+        assert_eq!(Some(3u32), d.u32().ok());
     }
 
     #[test]
     fn object() {
+        let mut map = BTreeMap::new();
+        map.insert(String::from("a"), 1u8);
+        map.insert(String::from("b"), 2u8);
+        map.insert(String::from("c"), 3u8);
+        let mut d = decoder("a3616101616202616303");
+        let mut x = BTreeMap::new();
+        for _ in 0 .. d.object().unwrap() {
+            x.insert(d.text().unwrap(), d.u8().unwrap());
+        }
+        assert_eq!(map, x);
+    }
+
+    #[test]
+    fn array_of_array() {
+        let mut d = decoder("828301020383010203");
+        let outer = d.array().unwrap();
+        let mut v = Vec::with_capacity(outer);
+        for _ in 0 .. outer {
+            let inner = d.array().unwrap();
+            let mut w = Vec::with_capacity(inner);
+            for _ in 0 .. inner {
+                w.push(d.u8().unwrap())
+            }
+            v.push(w)
+        }
+        assert_eq!(vec![vec![1, 2, 3], vec![1, 2, 3]], v)
+    }
+
+    #[test]
+    fn object_value() {
         let v = decoder("a2616101028103").value().ok().unwrap();
         let d = ValueDecoder::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
@@ -1144,11 +1019,9 @@ mod tests {
         // by default, tags are ignored
         assert_eq!(Some(1363896240), decoder("c11a514b67b0").u32().ok());
         // but can be extracted if desired
-        let result = decoder("c11a514b67b0").tagged(|d, t| {
-            assert_eq!(Tag::Timestamp, t);
-            d.u32()
-        });
-        assert_eq!(Some(1363896240), result.ok())
+        let mut d = decoder("c11a514b67b0");
+        assert_eq!(Some(Tag::Timestamp), d.tag().ok());
+        assert_eq!(Some(1363896240), d.u32().ok())
     }
 
     #[test]

@@ -27,4 +27,5 @@ pub mod encoder;
 pub mod random;
 
 pub use decoder::{Decoder, DecodeError, DecodeResult, Config};
+pub use decoder::{opt, maybe, or_break};
 pub use encoder::{Encoder, EncodeError, EncodeResult};

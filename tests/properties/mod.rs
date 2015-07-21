@@ -3,7 +3,6 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::values::{Bytes, Text, Value};
 use util::identity;
 
 #[cfg(feature="random")]
@@ -65,20 +64,9 @@ fn identity_bytes(x: Vec<u8>) -> bool {
 }
 
 #[quickcheck]
-fn identity_bytes_stream(x: Vec<Vec<u8>>) -> bool {
-    identity(|mut e| e.bytes_indef(|mut e| {
-        for v in &x {
-            try!(e.bytes(v))
-        }
-        Ok(())
-    }),
-    |mut d| {
-        match d.value().unwrap() {
-            Value::Bytes(Bytes::Chunks(chunks)) =>
-                x.iter().zip(chunks.iter()).all(|(x, y)| x == y),
-            _ => false
-        }
-    })
+fn identity_bytes_stream(v: Vec<Vec<u8>>) -> bool {
+    identity(|mut e| e.bytes_iter(v.iter().map(|x| &x[..])),
+             |mut d| d.bytes_iter().unwrap().zip(v.iter()).all(|(x, y)| &x.unwrap() == y))
 }
 
 #[quickcheck]
@@ -87,18 +75,7 @@ fn identity_text(x: String) -> bool {
 }
 
 #[quickcheck]
-fn identity_text_stream(x: Vec<String>) -> bool {
-    identity(|mut e| e.text_indef(|mut e| {
-        for v in &x {
-            try!(e.text(&v[..]))
-        }
-        Ok(())
-    }),
-    |mut d| {
-        match d.value().unwrap() {
-            Value::Text(Text::Chunks(chunks)) =>
-                x.iter().zip(chunks.iter()).all(|(x, y)| x == y),
-            _ => false
-        }
-    })
+fn identity_text_stream(v: Vec<String>) -> bool {
+    identity(|mut e| e.text_iter(v.iter().map(|x| &x[..])),
+             |mut d| d.text_iter().unwrap().zip(v.iter()).all(|(x, y)| &x.unwrap() == y))
 }

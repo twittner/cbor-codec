@@ -25,16 +25,6 @@ pub enum EncodeError {
     UnexpectedEOF,
     /// The provided `Simple` value is neither unassigned nor reserved
     InvalidSimpleValue(Simple),
-    /// Too many elements have been written to this `EncoderSlice`.
-    /// When encoding arrays or objects the length parameter has
-    /// to match the number of elements to encode.
-    EndOfEncoderSlice,
-    /// When encoding an array, the provided length parameter is greater
-    /// than the number of elements which have actually been encoded.
-    InvalidArrayLen,
-    /// When encoding an object, the provided length parameter is greater
-    /// than the number of elements which have actually been encoded.
-    InvalidObjectLen,
     /// Certain values (e.g. `Value::Break`) are not legal to encode as
     /// independent units. Attempting to do so will trigger this error.
     InvalidValue(Value)
@@ -43,12 +33,9 @@ pub enum EncodeError {
 impl fmt::Display for EncodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            EncodeError::IoError(ref e)      => write!(f, "EncodeError: I/O error: {}", *e),
-            EncodeError::UnexpectedEOF       => write!(f, "EncodeError: unexpected end-of-file"),
-            EncodeError::EndOfEncoderSlice   => write!(f, "EncodeError: end of decoder slice"),
-            EncodeError::InvalidArrayLen     => write!(f, "EncodeError: not enough array elements"),
-            EncodeError::InvalidObjectLen    => write!(f, "EncodeError: not enough object elements"),
-            EncodeError::InvalidValue(ref v) => write!(f, "EncodeError: invalid value {:?}", v),
+            EncodeError::IoError(ref e)            => write!(f, "EncodeError: I/O error: {}", *e),
+            EncodeError::UnexpectedEOF             => write!(f, "EncodeError: unexpected end-of-file"),
+            EncodeError::InvalidValue(ref v)       => write!(f, "EncodeError: invalid value {:?}", v),
             EncodeError::InvalidSimpleValue(ref s) => write!(f, "EncodeError: invalid simple value {:?}", s)
         }
     }
@@ -100,36 +87,30 @@ impl<W: WriteBytesExt> Encoder<W> {
 
     pub fn value(&mut self, x: &Value) -> EncodeResult {
         match x {
-            &Value::Array(ref vv) => self.array(vv.len(), |mut e| {
+            &Value::Array(ref vv) => {
+                try!(self.array(vv.len()));
                 for v in vv {
-                    try!(e.value(v))
+                    try!(self.value(v))
                 }
                 Ok(())
-            }),
+            }
             &Value::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
-            &Value::Bytes(Bytes::Chunks(ref bb)) => self.bytes_indef(|mut e| {
-                for b in bb {
-                    try!(e.bytes(&b[..]))
-                }
-                Ok(())
-            }),
-            &Value::Text(Text::Text(ref txt))   => self.text(txt),
-            &Value::Text(Text::Chunks(ref txt)) => self.text_indef(|mut e| {
-                for t in txt {
-                    try!(e.text(&t[..]))
-                }
-                Ok(())
-            }),
-            &Value::Map(ref m) => self.object(m.len(), |mut e| {
+            &Value::Bytes(Bytes::Chunks(ref bb)) => self.bytes_iter(bb.iter().map(|v| &v[..])),
+            &Value::Text(Text::Text(ref txt))    => self.text(txt),
+            &Value::Text(Text::Chunks(ref txt))  => self.text_iter(txt.iter().map(|v| &v[..])),
+            &Value::Map(ref m) => {
+                try!(self.object(m.len()));
                 for (k, v) in m {
-                    try!(e.key(k));
-                    try!(e.value(v))
+                    try!(self.key(k).and(self.value(v)))
                 }
                 Ok(())
-            }),
-            &Value::Tagged(t, box ref val) => self.tagged(t, |mut e| e.value(val)),
-            &Value::Undefined => self.writer.write_u8(0b111_00000 | 23).map_err(From::from),
-            &Value::Null      => self.writer.write_u8(0b111_00000 | 22).map_err(From::from),
+            }
+            &Value::Tagged(t, box ref val) => {
+                try!(self.tag(t));
+                self.value(val)
+            }
+            &Value::Undefined => self.undefined(),
+            &Value::Null      => self.null(),
             &Value::Simple(s) => self.simple(s),
             &Value::Bool(b)   => self.bool(b),
             &Value::U8(n)     => self.u8(n),
@@ -158,19 +139,9 @@ impl<W: WriteBytesExt> Encoder<W> {
             &Key::U32(n)  => self.u32(n),
             &Key::U64(n)  => self.u64(n),
             &Key::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
-            &Key::Bytes(Bytes::Chunks(ref bb)) => self.bytes_indef(|mut e| {
-                for b in bb {
-                    try!(e.bytes(&b[..]))
-                }
-                Ok(())
-            }),
-            &Key::Text(Text::Text(ref txt))   => self.text(txt),
-            &Key::Text(Text::Chunks(ref txt)) => self.text_indef(|mut e| {
-                for t in txt {
-                    try!(e.text(&t[..]))
-                }
-                Ok(())
-            })
+            &Key::Bytes(Bytes::Chunks(ref bb)) => self.bytes_iter(bb.iter().map(|v| &v[..])),
+            &Key::Text(Text::Text(ref txt))    => self.text(txt),
+            &Key::Text(Text::Chunks(ref txt))  => self.text_iter(txt.iter().map(|v| &v[..]))
         }
     }
 
@@ -287,11 +258,11 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite byte string encoding. (RFC 7049 section 2.2.2)
-    pub fn bytes_indef<F>(&mut self, mut f: F) -> EncodeResult
-    where F: FnMut(BytesEncoder<W>) -> EncodeResult
-    {
+    pub fn bytes_iter<'r, I: Iterator<Item=&'r [u8]>>(&mut self, iter: I) -> EncodeResult {
         try!(self.writer.write_u8(0b010_11111));
-        try!(f(BytesEncoder::new(self)));
+        for x in iter {
+            try!(self.bytes(x))
+        }
         self.writer.write_u8(0b111_11111).map_err(From::from)
     }
 
@@ -301,70 +272,51 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite string encoding. (RFC 7049 section 2.2.2)
-    pub fn text_indef<F>(&mut self, mut f: F) -> EncodeResult
-    where F: FnMut(TextEncoder<W>) -> EncodeResult
-    {
+    pub fn text_iter<'r, I: Iterator<Item=&'r str>>(&mut self, iter: I) -> EncodeResult {
         try!(self.writer.write_u8(0b011_11111));
-        try!(f(TextEncoder::new(self)));
+        for x in iter {
+            try!(self.text(x))
+        }
         self.writer.write_u8(0b111_11111).map_err(From::from)
     }
 
-    pub fn opt<F, A>(&mut self, x: Option<A>, mut f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>, &A) -> EncodeResult
-    {
-        match x {
-            Some(ref a) => f(self, a),
-            None        => self.writer.write_u8(0b111_00000 | 22).map_err(From::from)
-        }
+    pub fn null(&mut self) -> EncodeResult {
+        self.writer.write_u8(0b111_00000 | 22).map_err(From::from)
     }
 
-    pub fn tagged<F>(&mut self, x: Tag, mut f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        self.type_len(Type::Tagged, x.to()).and(f(self))
+    pub fn undefined(&mut self) -> EncodeResult {
+        self.writer.write_u8(0b111_00000 | 23).map_err(From::from)
     }
 
-    pub fn array<F>(&mut self, len: usize, mut f: F) -> EncodeResult
-    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
-    {
-        try!(self.type_len(Type::Array, len as u64));
-        let mut eslice = EncoderSlice::new(self, len);
-        try!(f(&mut eslice));
-        if eslice.at_end() {
-            Ok(())
-        } else {
-            Err(EncodeError::InvalidArrayLen)
-        }
+    pub fn tag(&mut self, x: Tag) -> EncodeResult {
+        self.type_len(Type::Tagged, x.to())
+    }
+
+    pub fn array(&mut self, len: usize) -> EncodeResult {
+        self.type_len(Type::Array, len as u64)
     }
 
     /// Indefinite array encoding. (RFC 7049 section 2.2.1)
-    pub fn array_indef<F>(&mut self, mut f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        try!(self.writer.write_u8(0b100_11111));
-        try!(f(self));
+    pub fn array_begin(&mut self) -> EncodeResult {
         self.writer.write_u8(0b100_11111).map_err(From::from)
     }
 
-    pub fn object<F>(&mut self, len: usize, mut f: F) -> EncodeResult
-    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
-    {
-        try!(self.type_len(Type::Object, len as u64));
-        let mut eslice = EncoderSlice::new(self, len * 2);
-        try!(f(&mut eslice));
-        if eslice.at_end() {
-            Ok(())
-        } else {
-            Err(EncodeError::InvalidObjectLen)
-        }
+    /// End of indefinite array encoding. (RFC 7049 section 2.2.1)
+    pub fn array_end(&mut self) -> EncodeResult {
+        self.writer.write_u8(0b100_11111).map_err(From::from)
+    }
+
+    pub fn object(&mut self, len: usize) -> EncodeResult {
+        self.type_len(Type::Object, len as u64)
     }
 
     /// Indefinite object encoding. (RFC 7049 section 2.2.1)
-    pub fn object_indef<F>(&mut self, mut f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        try!(self.writer.write_u8(0b101_11111));
-        try!(f(self)); // TODO: Ensure key-value pairs are written
+    pub fn object_begin<F>(&mut self) -> EncodeResult {
+        self.writer.write_u8(0b101_11111).map_err(From::from)
+    }
+
+    /// End of indefinite object encoding. (RFC 7049 section 2.2.1)
+    pub fn object_end<F>(&mut self) -> EncodeResult {
         self.writer.write_u8(0b101_11111).map_err(From::from)
     }
 
@@ -377,209 +329,6 @@ impl<W: WriteBytesExt> Encoder<W> {
             0x100000...0xFFFFFFFF => w.write_u8(t.major() << 5 | 26).and(w.write_u32::<BigEndian>(x as u32)).map_err(From::from),
             _                     => w.write_u8(t.major() << 5 | 27).and(w.write_u64::<BigEndian>(x)).map_err(From::from)
         }
-    }
-}
-
-// Bytes Encoder ////////////////////////////////////////////////////////////
-
-/// A restricted encoder type to be used for encoding indefinite byte strings.
-pub struct BytesEncoder<'r, W: 'r> {
-    encoder: &'r mut Encoder<W>
-}
-
-impl<'r, W: WriteBytesExt + 'r> BytesEncoder<'r, W> {
-    pub fn new(e: &'r mut Encoder<W>) -> BytesEncoder<'r, W> {
-        BytesEncoder { encoder: e }
-    }
-
-    pub fn bytes(&mut self, x: &[u8]) -> EncodeResult {
-        self.encoder.bytes(x)
-    }
-}
-
-// Text Encoder ////////////////////////////////////////////////////////////
-
-/// A restricted encoder type to be used for encoding indefinite strings.
-pub struct TextEncoder<'r, W: 'r> {
-    encoder: &'r mut Encoder<W>
-}
-
-impl<'r, W: WriteBytesExt + 'r> TextEncoder<'r, W> {
-    pub fn new(e: &'r mut Encoder<W>) -> TextEncoder<'r, W> {
-        TextEncoder { encoder: e }
-    }
-
-    pub fn text(&mut self, x: &str) -> EncodeResult {
-        self.encoder.text(x)
-    }
-}
-
-// EncoderSlice /////////////////////////////////////////////////////////////
-
-/// An `EncoderSlice` exposes the same API as `Encoder`, but only supports a
-/// limited number of encoding steps.
-pub struct EncoderSlice<'r, W: 'r> {
-    encoder: &'r mut Encoder<W>,
-    limit: usize,
-    count: usize
-}
-
-impl<'r, W: WriteBytesExt + 'r> EncoderSlice<'r, W> {
-    pub fn new(e: &'r mut Encoder<W>, max: usize) -> EncoderSlice<'r, W> {
-        EncoderSlice { encoder: e, limit: max, count: 0 }
-    }
-
-    pub fn limit(&self) -> usize {
-        self.limit
-    }
-
-    pub fn at_end(&self) -> bool {
-        self.count == self.limit
-    }
-
-    pub fn value(&mut self, x: &Value) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.value(x)
-    }
-
-    pub fn key(&mut self, x: &Key) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.key(x)
-    }
-
-    pub fn u8(&mut self, x: u8) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.u8(x)
-    }
-
-    pub fn u16(&mut self, x: u16) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.u16(x)
-    }
-
-    pub fn u32(&mut self, x: u32) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.u32(x)
-    }
-
-    pub fn u64(&mut self, x: u64) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.u64(x)
-    }
-
-    pub fn i8(&mut self, x: i8) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.i8(x)
-    }
-
-    pub fn i16(&mut self, x: i16) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.i16(x)
-    }
-
-    pub fn i32(&mut self, x: i32) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.i32(x)
-    }
-
-    pub fn i64(&mut self, x: i64) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.i64(x)
-    }
-
-    pub fn f32(&mut self, x: f32) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.f32(x)
-    }
-
-    pub fn f64(&mut self, x: f64) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.f64(x)
-    }
-
-    pub fn bool(&mut self, x: bool) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.bool(x)
-    }
-
-    pub fn simple(&mut self, x: Simple) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.simple(x)
-    }
-
-    pub fn bytes(&mut self, x: &[u8]) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.bytes(x)
-    }
-
-    pub fn bytes_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: FnMut(BytesEncoder<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.bytes_indef(f)
-    }
-
-    pub fn text(&mut self, x: &str) -> EncodeResult {
-        try!(self.check_and_bump_limit());
-        self.encoder.text(x)
-    }
-
-    pub fn text_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: FnMut(TextEncoder<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.text_indef(f)
-    }
-
-    pub fn opt<F, A>(&mut self, x: Option<A>, f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>, &A) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.opt(x, f)
-    }
-
-    pub fn tagged<F>(&mut self, x: Tag, f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.tagged(x, f)
-    }
-
-    pub fn array<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.array(len, f)
-    }
-
-    pub fn array_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.array_indef(f)
-    }
-
-    pub fn object<F>(&mut self, len: usize, f: F) -> EncodeResult
-    where F: FnMut(&mut EncoderSlice<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.object(len, f)
-    }
-
-    pub fn object_indef<F>(&mut self, f: F) -> EncodeResult
-    where F: FnMut(&mut Encoder<W>) -> EncodeResult
-    {
-        try!(self.check_and_bump_limit());
-        self.encoder.object_indef(f)
-    }
-
-    #[inline(always)]
-    fn check_and_bump_limit(&mut self) -> EncodeResult {
-        if self.count >= self.limit {
-            return Err(EncodeError::EndOfEncoderSlice)
-        }
-        self.count += 1;
-        Ok(())
     }
 }
 
@@ -664,66 +413,57 @@ mod tests {
     #[test]
     fn indefinite_text() {
         encoded("7f657374726561646d696e67ff", |mut e| {
-            let input = vec!["strea", "ming"];
-            e.text_indef(|mut e| {
-                for s in &input {
-                    try!(e.text(s))
-                }
-                Ok(())
-            })
+            e.text_iter(vec!["strea", "ming"].into_iter())
         })
     }
 
     #[test]
     fn indefinite_bytes() {
         encoded("5f457374726561446d696e67ff", |mut e| {
-            let input = vec!["strea".as_bytes(), "ming".as_bytes()];
-            e.bytes_indef(|mut e| {
-                for b in &input {
-                    try!(e.bytes(b))
-                }
-                Ok(())
-            })
+            e.bytes_iter(vec!["strea".as_bytes(), "ming".as_bytes()].into_iter())
         })
     }
 
     #[test]
     fn option() {
-        let none: Option<u8> = None;
-        let some: Option<u8> = Some(1);
-        encoded("f6", |mut e| {
-            e.opt(none, |e, &x| e.u8(x))
-        });
-        encoded("01", |mut e| {
-            e.opt(some, |e, &x| e.u8(x))
-        })
+        encoded("f6", |mut e| e.null())
     }
 
     #[test]
     fn tagged() {
-        encoded("c11a514b67b0", |mut e| e.tagged(Tag::Timestamp, |e| e.u32(1363896240)))
+        encoded("c11a514b67b0", |mut e| {
+            try!(e.tag(Tag::Timestamp));
+            e.u32(1363896240)
+        })
     }
 
     #[test]
     fn array() {
-        encoded("83010203", |mut e| e.array(3, |e| {
+        encoded("83010203", |mut e| {
+            try!(e.array(3));
             try!(e.u32(1));
             try!(e.u32(2));
             e.u32(3)
-        }));
-        encoded("8301820203820405", |mut e| e.array(3, |e| {
-            try!(e.u8(1));
-            try!(e.array(2, |e| e.u8(2).and(e.u8(3))));
-            e.array(2, |e| e.u8(4).and(e.u8(5)))
-        }))
+        });
+        encoded("8301820203820405", |mut e| {
+            e.array(3)
+             .and(e.u8(1))
+             .and(e.array(2))
+                .and(e.u8(2))
+                .and(e.u8(3))
+             .and(e.array(2))
+                .and(e.u8(4))
+                .and(e.u8(5))
+        })
     }
 
     #[test]
     fn object() {
-        encoded("a26161016162820203", |mut e| e.object(2, |e| {
-            try!(e.text("a")); try!(e.u8(1));
-            try!(e.text("b")); e.array(2, |e| e.u8(2).and(e.u8(3)))
-        }))
+        encoded("a26161016162820203", |mut e| {
+            try!(e.object(2));
+            try!(e.text("a").and(e.u8(1)));
+            e.text("b").and(e.array(2)).and(e.u8(2)).and(e.u8(3))
+        })
     }
 
     fn encoded<F>(expected: &str, mut f: F)
@@ -734,5 +474,3 @@ mod tests {
         assert_eq!(&expected.from_hex().unwrap()[..], &buffer[0 .. expected.len() / 2])
     }
 }
-
-
