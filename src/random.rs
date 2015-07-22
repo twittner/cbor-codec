@@ -11,7 +11,7 @@ use quickcheck::{Arbitrary, Gen};
 use rand::Rng;
 use std::collections::{BTreeMap, LinkedList};
 use types::Tag;
-use values::{Value, Simple, Key, Bytes, Text};
+use value::{Value, Simple, Key, Bytes, Text};
 
 /// Generate a random `cbor::Value`.
 /// Mostly useful for quickcheck related tests.

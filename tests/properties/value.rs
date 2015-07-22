@@ -5,7 +5,7 @@
 
 use cbor::{GenericEncoder, GenericDecoder};
 use cbor::random::gen_value;
-use cbor::values::{Key, Value};
+use cbor::value::{Key, Value};
 use quickcheck::{Arbitrary, Gen, QuickCheck, StdGen};
 use rand;
 use std::collections::BTreeMap;

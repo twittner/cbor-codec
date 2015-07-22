@@ -4,7 +4,7 @@
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
 use cbor::{Config, Decoder, Encoder, EncodeResult};
-use cbor::values::Value;
+use cbor::value::Value;
 use std::io::Cursor;
 
 pub fn identity<F, G>(enc: F, dec: G) -> bool

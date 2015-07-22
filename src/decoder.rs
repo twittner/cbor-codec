@@ -22,7 +22,7 @@ use std::fmt::{self, Debug};
 use std::io;
 use std::string;
 use types::{Tag, Type};
-use values::{self, Bytes, Key, Simple, Text, Value};
+use value::{self, Bytes, Key, Simple, Text, Value};
 
 // Decoder Configuration ////////////////////////////////////////////////////
 
@@ -813,7 +813,7 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
                     return self.decode_value(level - 1)
                 }
                 let val = try!(self.decode_value(level - 1).map(|v| Value::Tagged(tag, Box::new(v))));
-                if self.decoder.config.check_tags && !values::check(&val) {
+                if self.decoder.config.check_tags && !value::check(&val) {
                     return Err(DecodeError::InvalidTag(val))
                 }
                 Ok(val)
@@ -852,7 +852,7 @@ mod tests {
     use std::io::Cursor;
     use super::*;
     use types::{Tag, Type};
-    use values::{self, Key, Simple, Value};
+    use value::{self, Key, Simple, Value};
 
     #[test]
     fn unsigned() {
@@ -936,7 +936,7 @@ mod tests {
         streaming.push_back(String::from("ming"));
         assert_eq!(
             Some(&streaming),
-            values::Cursor::new(&gen_decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
+            value::Cursor::new(&gen_decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
         );
     }
 
@@ -1009,7 +1009,7 @@ mod tests {
     #[test]
     fn object_value() {
         let v = gen_decoder("a2616101028103").value().ok().unwrap();
-        let d = values::Cursor::new(&v);
+        let d = value::Cursor::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
         assert_eq!(Some(3), d.get(Key::U8(2)).at(0).u8())
     }

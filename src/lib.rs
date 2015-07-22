@@ -19,7 +19,7 @@ extern crate quickcheck;
 extern crate rand;
 
 pub mod types;
-pub mod values;
+pub mod value;
 pub mod decoder;
 pub mod encoder;
 

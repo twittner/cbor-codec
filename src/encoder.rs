@@ -11,7 +11,7 @@ use std::io;
 use std::error::Error;
 use std::fmt;
 use types::{Tag, Type};
-use values::{Bytes, Key, Simple, Text, Value};
+use value::{Bytes, Key, Simple, Text, Value};
 
 // Encoder Error Type ///////////////////////////////////////////////////////
 
@@ -366,7 +366,7 @@ mod tests {
     use std::io::Cursor;
     use super::*;
     use types::Tag;
-    use values::Simple;
+    use value::Simple;
 
     #[test]
     fn unsigned() {

@@ -4,7 +4,7 @@
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
 use cbor::{Config, GenericDecoder, DecodeError, GenericEncoder};
-use cbor::values::{Key, Text, Value};
+use cbor::value::{Key, Text, Value};
 use rustc_serialize::base64::FromBase64;
 use serde::json;
 use serde::json::de::from_reader;
