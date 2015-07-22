@@ -5,6 +5,66 @@
 
 //! CBOR ([RFC 7049](http://tools.ietf.org/html/rfc7049))
 //! encoder implementation.
+//!
+//! This module provides an `Encoder` to directly encode Rust types into
+//! CBOR, and a `GenericEncoder` which encodes a `Value` into CBOR.
+//!
+//! # Example 1: Direct encoding
+//!
+//! ```
+//! extern crate cbor;
+//! extern crate rustc_serialize;
+//!
+//! use cbor::Encoder;
+//! use rustc_serialize::hex::FromHex;
+//! use std::io::Cursor;
+//!
+//! fn main() {
+//!     let mut e = Encoder::new(Cursor::new(Vec::new()));
+//!     e.u16(1000).unwrap();
+//!     assert_eq!("1903e8".from_hex().unwrap(), e.into_writer().into_inner())
+//! }
+//! ```
+//!
+//! # Example 2: Direct encoding (indefinite string)
+//!
+//! ```
+//! extern crate cbor;
+//! extern crate rustc_serialize;
+//!
+//! use cbor::Encoder;
+//! use rustc_serialize::hex::FromHex;
+//! use std::io::Cursor;
+//!
+//! fn main() {
+//!     let mut e = Encoder::new(Cursor::new(Vec::new()));
+//!     e.text_iter(vec!["strea", "ming"].into_iter()).unwrap();
+//!     let output = "7f657374726561646d696e67ff".from_hex().unwrap();
+//!     assert_eq!(output, e.into_writer().into_inner())
+//! }
+//! ```
+//!
+//! # Example 3: Direct encoding (nested array)
+//!
+//! ```
+//! extern crate cbor;
+//! extern crate rustc_serialize;
+//!
+//! use cbor::Encoder;
+//! use rustc_serialize::hex::FromHex;
+//! use std::io::Cursor;
+//!
+//! fn main() {
+//!     let mut e = Encoder::new(Cursor::new(Vec::new()));
+//!     e.array(3)
+//!      .and(e.u8(1))
+//!      .and(e.array(2)).and(e.u8(2)).and(e.u8(3))
+//!      .and(e.array(2)).and(e.u8(4)).and(e.u8(5))
+//!      .unwrap();
+//!     let output = "8301820203820405".from_hex().unwrap();
+//!     assert_eq!(output, e.into_writer().into_inner())
+//! }
+//! ```
 
 use byteorder::{self, BigEndian, WriteBytesExt};
 use std::io;

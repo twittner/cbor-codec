@@ -11,6 +11,80 @@
 //! - Resource limits (e.g. maximum nesting level)
 //! - Direct decoding into Rust types
 //! - Indefinite sized bytes, strings, arrays and objects
+//!
+//! The module is structured as follows:
+//!
+//! 1. `Kernel` contains the basic decoding functionality, capable of
+//! decoding simple unstructured types.
+//! 2. `Decoder` directly decodes into native Rust types.
+//! 3. `GenericDecoder` handles arbitrary CBOR items and decodes them
+//! into an `Value` AST.
+//!
+//! # Example 1: Direct decoding
+//!
+//! ```
+//! use cbor::{Config, Decoder};
+//! use std::io::Cursor;
+//!
+//! let mut d = Decoder::new(Config::default(), Cursor::new(vec![0u8]));
+//! assert_eq!(Some(0), d.u64().ok())
+//! ```
+//!
+//! # Example 2: Direct decoding (nested array)
+//!
+//! ```
+//! extern crate cbor;
+//! extern crate rustc_serialize;
+//!
+//! use cbor::{Config, Decoder};
+//! use rustc_serialize::hex::FromHex;
+//! use std::io::Cursor;
+//!
+//! fn main() {
+//!     let input   = Cursor::new("828301020383010203".from_hex().unwrap());
+//!     let mut dec = Decoder::new(Config::default(), input);
+//!     let mut res = Vec::new();
+//!     for _ in 0 .. dec.array().unwrap() {
+//!         let mut vec = Vec::new();
+//!         for _ in 0 .. dec.array().unwrap() {
+//!             vec.push(dec.u8().unwrap())
+//!         }
+//!         res.push(vec)
+//!     }
+//!     assert_eq!(vec![vec![1, 2, 3], vec![1, 2, 3]], res)
+//! }
+//! ```
+//!
+//! # Example 3: Generic decoding
+//!
+//! ```
+//! extern crate cbor;
+//! extern crate rustc_serialize;
+//!
+//! use cbor::{Config, GenericDecoder};
+//! use cbor::value::{self, Key};
+//! use rustc_serialize::hex::FromHex;
+//! use std::io::Cursor;
+//!
+//! fn main() {
+//!     let input = Cursor::new("a2616101028103".from_hex().unwrap());
+//!     let mut d = GenericDecoder::new(Config::default(), input);
+//!     let value = d.value().unwrap();
+//!     let     c = value::Cursor::new(&value);
+//!     assert_eq!(Some(1), c.field("a").u8());
+//!     assert_eq!(Some(3), c.get(Key::U8(2)).at(0).u8())
+//! }
+//! ```
+//!
+//! # Example 4: Direct decoding (optional value)
+//!
+//! ```
+//! use cbor::{opt, Config, Decoder};
+//! use std::io::Cursor;
+//!
+//! let mut d = Decoder::new(Config::default(), Cursor::new(vec![0xF6]));
+//! assert_eq!(None, opt(d.u8()).unwrap())
+//! ```
 
 use byteorder::{self, BigEndian, ReadBytesExt};
 use std::{u64, usize};
