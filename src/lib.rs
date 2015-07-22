@@ -26,6 +26,6 @@ pub mod encoder;
 #[cfg(feature="random")]
 pub mod random;
 
-pub use decoder::{Decoder, DecodeError, DecodeResult, Config};
+pub use decoder::{Config, Decoder, DecodeError, DecodeResult, GenericDecoder};
 pub use decoder::{opt, maybe, or_break};
-pub use encoder::{Encoder, EncodeError, EncodeResult};
+pub use encoder::{Encoder, EncodeError, EncodeResult, GenericEncoder};

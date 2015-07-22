@@ -3,7 +3,7 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::{Config, Decoder, DecodeError, Encoder};
+use cbor::{Config, GenericDecoder, DecodeError, GenericEncoder};
 use cbor::values::{Key, Text, Value};
 use rustc_serialize::base64::FromBase64;
 use serde::json;
@@ -28,11 +28,11 @@ fn duplicate_key() {
     let mut map = BTreeMap::new();
     map.insert(Key::U8(42), Value::Bool(true));
     map.insert(Key::U32(42), Value::Bool(false));
-    let mut e = Encoder::new(Cursor::new(Vec::new()));
+    let mut e = GenericEncoder::new(Cursor::new(Vec::new()));
     e.value(&Value::Map(map)).unwrap();
-    let mut buffer = e.into_writer();
+    let mut buffer = e.into_inner().into_writer();
     buffer.set_position(0);
-    match Decoder::new(Config::default(), buffer).value() {
+    match GenericDecoder::new(Config::default(), buffer).value() {
         Err(DecodeError::DuplicateKey(_)) => (),
         other                             => panic!("Unexpected: {:?}", other)
     }
@@ -44,7 +44,7 @@ fn test_all() {
     let test_vectors: Vec<TestVector> = from_reader(reader).unwrap();
     for v in test_vectors {
         let raw = v.cbor.from_base64().unwrap();
-        let mut dec = Decoder::new(Config::default(), &raw[..]);
+        let mut dec = GenericDecoder::new(Config::default(), &raw[..]);
         let val = dec.value().unwrap();
         if let Some(x) = v.decoded {
             if !eq(&x, &val) {

@@ -3,6 +3,7 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
+use cbor::{GenericEncoder, GenericDecoder};
 use cbor::random::gen_value;
 use cbor::values::{Key, Value};
 use quickcheck::{Arbitrary, Gen, QuickCheck, StdGen};
@@ -22,8 +23,8 @@ impl Arbitrary for ArbitraryValue {
 #[test]
 fn identity_value() {
     fn prop(a: ArbitraryValue) -> bool {
-        identity(|mut e| e.value(&a.0), |mut d| {
-            let y = d.value().unwrap();
+        identity(|e| GenericEncoder::from_encoder(e).value(&a.0), |d| {
+            let y = GenericDecoder::from_decoder(d).value().unwrap();
             if eq(&a.0, &y) {
                 true
             } else {

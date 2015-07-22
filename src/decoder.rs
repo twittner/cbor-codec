@@ -213,8 +213,8 @@ pub type TypeInfo = (Type, u8);
 /// This decoding kernel reads from an underlying `std::io::Read` type
 /// primitive CBOR values such as unsigned and signed integers as well
 /// as raw bytes.
-/// It forms the basis on which `Decoder` adds logic for handling
-/// `Tag`s, heterogenous data and generic value decoding.
+/// It forms the basis on which `Decoder` and `GenericDecoder` add logic
+/// for handling `Tag`s, heterogenous data and generic value decoding.
 pub struct Kernel<R> {
     reader: R
 }
@@ -404,14 +404,13 @@ fn unexpected_type<A>(ti: &TypeInfo) -> DecodeResult<A> {
 /// The actual decoder type definition
 pub struct Decoder<R> {
     kernel: Kernel<R>,
-    config: Config,
-    nesting: usize
+    config: Config
 }
 
 impl<R: ReadBytesExt> Decoder<R> {
     pub fn new(c: Config, r: R) -> Decoder<R> {
         assert!(usize::BITS <= u64::BITS);
-        Decoder { kernel: Kernel::new(r), config: c, nesting: 0 }
+        Decoder { kernel: Kernel::new(r), config: c }
     }
 
     pub fn into_reader(self) -> R {
@@ -468,205 +467,6 @@ impl<R: ReadBytesExt> Decoder<R> {
 
     pub fn f64(&mut self) -> DecodeResult<f64> {
         self.typeinfo().and_then(|ti| self.kernel.f64(&ti))
-    }
-
-    /// Decode into a `Value`, i.e. an intermediate representation which
-    /// can be further deconstructed using `ValueDecoder`.
-    /// This supports indefinite decoding as well as tag validation
-    /// (if not disabled).
-    pub fn value(&mut self) -> DecodeResult<Value> {
-        match try!(self.kernel.typeinfo()) {
-            ti@(Type::UInt8, _)   => self.kernel.u8(&ti).map(Value::U8),
-            ti@(Type::UInt16, _)  => self.kernel.u16(&ti).map(Value::U16),
-            ti@(Type::UInt32, _)  => self.kernel.u32(&ti).map(Value::U32),
-            ti@(Type::UInt64, _)  => self.kernel.u64(&ti).map(Value::U64),
-            ti@(Type::Int8, _)    => self.kernel.i8(&ti).map(Value::I8),
-            ti@(Type::Int16, _)   => self.kernel.i16(&ti).map(Value::I16),
-            ti@(Type::Int32, _)   => self.kernel.i32(&ti).map(Value::I32),
-            ti@(Type::Int64, _)   => self.kernel.i64(&ti).map(Value::I64),
-            ti@(Type::Float16, _) => self.kernel.f16(&ti).map(Value::F32),
-            ti@(Type::Float32, _) => self.kernel.f32(&ti).map(Value::F32),
-            ti@(Type::Float64, _) => self.kernel.f64(&ti).map(Value::F64),
-            ti@(Type::Bool, _)    => self.kernel.bool(&ti).map(Value::Bool),
-            (Type::Null, _)       => Ok(Value::Null),
-            (Type::Undefined, _)  => Ok(Value::Undefined),
-            (Type::Break, _)      => Ok(Value::Break),
-            (Type::Bytes, 31)     => { // indefinite byte string
-                let mut i = 0u64;
-                let mut v = LinkedList::new();
-                loop {
-                    match self.bytes() {
-                        Ok(chunk) => {
-                            i += chunk.len() as u64;
-                            if i > self.config.max_len_bytes as u64 {
-                                return Err(DecodeError::TooLong { max: self.config.max_len_bytes, actual: i })
-                            }
-                            v.push_back(chunk)
-                        }
-                        Err(ref e) if is_break(e) => break,
-                        Err(e) => return Err(e)
-                    }
-                }
-                Ok(Value::Bytes(Bytes::Chunks(v)))
-            }
-            (Type::Bytes, a) => {
-                let max = self.config.max_len_bytes;
-                self.kernel.raw_data(a, max).map(|x| Value::Bytes(Bytes::Bytes(x)))
-            }
-            (Type::Text, 31) => { // indefinite string
-                let mut i = 0u64;
-                let mut v = LinkedList::new();
-                loop {
-                    match self.text() {
-                        Ok(chunk) => {
-                            i += chunk.len() as u64;
-                            if i > self.config.max_len_text as u64 {
-                                return Err(DecodeError::TooLong { max: self.config.max_len_text, actual: i })
-                            }
-                            v.push_back(chunk)
-                        }
-                        Err(ref e) if is_break(e) => break,
-                        Err(e) => return Err(e)
-                    }
-                }
-                Ok(Value::Text(Text::Chunks(v)))
-            }
-            (Type::Text, a) => {
-                let max  = self.config.max_len_text;
-                let data = try!(self.kernel.raw_data(a, max));
-                String::from_utf8(data).map(|x| Value::Text(Text::Text(x))).map_err(From::from)
-            }
-            (Type::Array, 31) => { // indefinite length array
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                let mut i = 0u64;
-                let mut v = Vec::new();
-                loop {
-                    i += 1;
-                    if i > self.config.max_len_array as u64 {
-                        return Err(DecodeError::TooLong { max: self.config.max_len_array, actual: i })
-                    }
-                    self.nesting += 1;
-                    match self.value() {
-                        Ok(Value::Break) => {
-                            self.nesting -= 1;
-                            break
-                        }
-                        Ok(x) => v.push(x),
-                        e     => return e
-                    }
-                    self.nesting -= 1;
-                }
-                Ok(Value::Array(v))
-            }
-            (Type::Array, a) => {
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                let len = try!(self.kernel.unsigned(a));
-                if len > self.config.max_len_array as u64 {
-                    return Err(DecodeError::TooLong { max: self.config.max_len_array, actual: len })
-                }
-                let n = len as usize;
-                let mut v = Vec::with_capacity(n);
-                for _ in 0 .. n {
-                    self.nesting += 1;
-                    v.push(try!(self.value()));
-                    self.nesting -= 1;
-                }
-                Ok(Value::Array(v))
-            }
-            (Type::Object, 31) => { // indefinite size object
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                let mut i = 0u64;
-                let mut m = BTreeMap::new();
-                loop {
-                    i += 1;
-                    if i > self.config.max_size_map as u64 {
-                        return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: i })
-                    }
-                    self.nesting += 1;
-                    match self.key() {
-                        Ok(key) => {
-                            if m.contains_key(&key) {
-                                return Err(DecodeError::DuplicateKey(Box::new(key)))
-                            }
-                            match try!(self.value()) {
-                                Value::Break => return Err(DecodeError::UnexpectedBreak),
-                                value        => { m.insert(key, value); }
-                            }
-                        }
-                        Err(DecodeError::InvalidKey(Value::Break)) => {
-                            self.nesting -= 1;
-                            break
-                        }
-                        Err(e) => return Err(e)
-                    }
-                    self.nesting -= 1;
-                }
-                Ok(Value::Map(m))
-            }
-            (Type::Object, a) => {
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                let len = try!(self.kernel.unsigned(a));
-                if len > self.config.max_size_map as u64 {
-                    return Err(DecodeError::TooLong { max: self.config.max_size_map, actual: len })
-                }
-                let n = len as usize;
-                let mut m = BTreeMap::new();
-                for _ in 0 .. n {
-                    self.nesting += 1;
-                    let key = try!(self.key());
-                    if m.contains_key(&key) {
-                        return Err(DecodeError::DuplicateKey(Box::new(key)))
-                    }
-                    m.insert(key, try!(self.value()));
-                    self.nesting -= 1;
-                }
-                Ok(Value::Map(m))
-            }
-            (Type::Tagged, a) => {
-                let tag = try!(self.kernel.unsigned(a).map(Tag::of));
-                if self.config.skip_tags {
-                    return self.value()
-                }
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                self.nesting += 1;
-                let val = try!(self.value().map(|v| Value::Tagged(tag, Box::new(v))));
-                if self.config.check_tags && !values::check(&val) {
-                    return Err(DecodeError::InvalidTag(val))
-                }
-                self.nesting -= 1;
-                Ok(val)
-            }
-            (Type::Unassigned { major: 7, info: a }, _) => Ok(Value::Simple(Simple::Unassigned(a))),
-            (Type::Reserved { major: 7, info: a }, _)   => Ok(Value::Simple(Simple::Reserved(a))),
-            ti => unexpected_type(&ti)
-        }
-    }
-
-    fn key(&mut self) -> DecodeResult<Key> {
-        match try!(self.value()) {
-            Value::Bool(x)   => Ok(Key::Bool(x)),
-            Value::Bytes(x)  => Ok(Key::Bytes(x)),
-            Value::I8(x)     => Ok(Key::I8(x)),
-            Value::I16(x)    => Ok(Key::I16(x)),
-            Value::I32(x)    => Ok(Key::I32(x)),
-            Value::I64(x)    => Ok(Key::I64(x)),
-            Value::Text(x)   => Ok(Key::Text(x)),
-            Value::U8(x)     => Ok(Key::U8(x)),
-            Value::U16(x)    => Ok(Key::U16(x)),
-            Value::U32(x)    => Ok(Key::U32(x)),
-            Value::U64(x)    => Ok(Key::U64(x)),
-            other            => Err(DecodeError::InvalidKey(other))
-        }
     }
 
     /// Decode a single byte string.
@@ -791,18 +591,17 @@ impl<R: ReadBytesExt> Decoder<R> {
 
     // Decode type information while skipping tags
     fn typeinfo(&mut self) -> DecodeResult<TypeInfo> {
-        match try!(self.kernel.typeinfo()) {
-            (Type::Tagged, i) => {
-                if self.nesting > self.config.max_nesting {
-                    return Err(DecodeError::TooNested)
-                }
-                self.nesting += 1;
-                let ti = self.kernel.unsigned(i).and(self.typeinfo());
-                self.nesting -= 1;
-                ti
+        fn go<A: ReadBytesExt>(d: &mut Decoder<A>, level: usize) -> DecodeResult<TypeInfo> {
+            if level == 0 {
+                return Err(DecodeError::TooNested)
             }
-            ti => Ok(ti)
+            match try!(d.kernel.typeinfo()) {
+                (Type::Tagged, i) => d.kernel.unsigned(i).and(go(d, level - 1)),
+                ti                => Ok(ti)
+            }
         }
+        let start = self.config.max_nesting;
+        go(self, start)
     }
 }
 
@@ -842,6 +641,207 @@ impl<'r, R: 'r + ReadBytesExt> Iterator for TextIter<'r, R> {
     }
 }
 
+// Generic Decoder //////////////////////////////////////////////////////////
+
+/// A generic decoder decodes arbitrary CBOR into a `Value` AST.
+pub struct GenericDecoder<R> {
+    decoder: Decoder<R>
+}
+
+impl<R: ReadBytesExt> GenericDecoder<R> {
+    pub fn new(c: Config, r: R) -> GenericDecoder<R> {
+        GenericDecoder { decoder: Decoder::new(c, r) }
+    }
+
+    pub fn from_decoder(d: Decoder<R>) -> GenericDecoder<R> {
+        GenericDecoder { decoder: d }
+    }
+
+    pub fn into_inner(self) -> Decoder<R> {
+        self.decoder
+    }
+
+    pub fn borrow_mut(&mut self) -> &mut Decoder<R> {
+        &mut self.decoder
+    }
+
+    /// Decode into a `Value`, i.e. an intermediate representation which
+    /// can be further deconstructed using a `Cursor`.
+    /// This supports indefinite decoding as well as tag validation
+    /// (if not disabled).
+    pub fn value(&mut self) -> DecodeResult<Value> {
+        let start = self.decoder.config.max_nesting;
+        self.decode_value(start)
+    }
+
+    fn decode_value(&mut self, level: usize) -> DecodeResult<Value> {
+        if level == 0 {
+            return Err(DecodeError::TooNested)
+        }
+        match try!(self.decoder.kernel.typeinfo()) {
+            ti@(Type::UInt8, _)   => self.decoder.kernel.u8(&ti).map(Value::U8),
+            ti@(Type::UInt16, _)  => self.decoder.kernel.u16(&ti).map(Value::U16),
+            ti@(Type::UInt32, _)  => self.decoder.kernel.u32(&ti).map(Value::U32),
+            ti@(Type::UInt64, _)  => self.decoder.kernel.u64(&ti).map(Value::U64),
+            ti@(Type::Int8, _)    => self.decoder.kernel.i8(&ti).map(Value::I8),
+            ti@(Type::Int16, _)   => self.decoder.kernel.i16(&ti).map(Value::I16),
+            ti@(Type::Int32, _)   => self.decoder.kernel.i32(&ti).map(Value::I32),
+            ti@(Type::Int64, _)   => self.decoder.kernel.i64(&ti).map(Value::I64),
+            ti@(Type::Float16, _) => self.decoder.kernel.f16(&ti).map(Value::F32),
+            ti@(Type::Float32, _) => self.decoder.kernel.f32(&ti).map(Value::F32),
+            ti@(Type::Float64, _) => self.decoder.kernel.f64(&ti).map(Value::F64),
+            ti@(Type::Bool, _)    => self.decoder.kernel.bool(&ti).map(Value::Bool),
+            (Type::Null, _)       => Ok(Value::Null),
+            (Type::Undefined, _)  => Ok(Value::Undefined),
+            (Type::Break, _)      => Ok(Value::Break),
+            (Type::Bytes, 31)     => { // indefinite byte string
+                let mut i = 0u64;
+                let mut v = LinkedList::new();
+                loop {
+                    match self.decoder.bytes() {
+                        Ok(chunk) => {
+                            i += chunk.len() as u64;
+                            if i > self.decoder.config.max_len_bytes as u64 {
+                                return Err(DecodeError::TooLong { max: self.decoder.config.max_len_bytes, actual: i })
+                            }
+                            v.push_back(chunk)
+                        }
+                        Err(ref e) if is_break(e) => break,
+                        Err(e)                    => return Err(e)
+                    }
+                }
+                Ok(Value::Bytes(Bytes::Chunks(v)))
+            }
+            (Type::Bytes, a) => {
+                let max = self.decoder.config.max_len_bytes;
+                self.decoder.kernel.raw_data(a, max).map(|x| Value::Bytes(Bytes::Bytes(x)))
+            }
+            (Type::Text, 31) => { // indefinite string
+                let mut i = 0u64;
+                let mut v = LinkedList::new();
+                loop {
+                    match self.decoder.text() {
+                        Ok(chunk) => {
+                            i += chunk.len() as u64;
+                            if i > self.decoder.config.max_len_text as u64 {
+                                return Err(DecodeError::TooLong { max: self.decoder.config.max_len_text, actual: i })
+                            }
+                            v.push_back(chunk)
+                        }
+                        Err(ref e) if is_break(e) => break,
+                        Err(e)                    => return Err(e)
+                    }
+                }
+                Ok(Value::Text(Text::Chunks(v)))
+            }
+            (Type::Text, a) => {
+                let max  = self.decoder.config.max_len_text;
+                let data = try!(self.decoder.kernel.raw_data(a, max));
+                String::from_utf8(data).map(|x| Value::Text(Text::Text(x))).map_err(From::from)
+            }
+            (Type::Array, 31) => { // indefinite length array
+                let mut i = 0u64;
+                let mut v = Vec::new();
+                loop {
+                    i += 1;
+                    if i > self.decoder.config.max_len_array as u64 {
+                        return Err(DecodeError::TooLong { max: self.decoder.config.max_len_array, actual: i })
+                    }
+                    match self.decode_value(level - 1) {
+                        Ok(Value::Break) => break,
+                        Ok(x)            => v.push(x),
+                        e                => return e
+                    }
+                }
+                Ok(Value::Array(v))
+            }
+            (Type::Array, a) => {
+                let len = try!(self.decoder.kernel.unsigned(a));
+                if len > self.decoder.config.max_len_array as u64 {
+                    return Err(DecodeError::TooLong { max: self.decoder.config.max_len_array, actual: len })
+                }
+                let n = len as usize;
+                let mut v = Vec::with_capacity(n);
+                for _ in 0 .. n {
+                    v.push(try!(self.decode_value(level - 1)));
+                }
+                Ok(Value::Array(v))
+            }
+            (Type::Object, 31) => { // indefinite size object
+                let mut i = 0u64;
+                let mut m = BTreeMap::new();
+                loop {
+                    i += 1;
+                    if i > self.decoder.config.max_size_map as u64 {
+                        return Err(DecodeError::TooLong { max: self.decoder.config.max_size_map, actual: i })
+                    }
+                    match self.decode_key(level - 1) {
+                        Ok(key) => {
+                            if m.contains_key(&key) {
+                                return Err(DecodeError::DuplicateKey(Box::new(key)))
+                            }
+                            match try!(self.decode_value(level - 1)) {
+                                Value::Break => return Err(DecodeError::UnexpectedBreak),
+                                value        => { m.insert(key, value); }
+                            }
+                        }
+                        Err(DecodeError::InvalidKey(Value::Break)) => break,
+                        Err(e) => return Err(e)
+                    }
+                }
+                Ok(Value::Map(m))
+            }
+            (Type::Object, a) => {
+                let len = try!(self.decoder.kernel.unsigned(a));
+                if len > self.decoder.config.max_size_map as u64 {
+                    return Err(DecodeError::TooLong { max: self.decoder.config.max_size_map, actual: len })
+                }
+                let n = len as usize;
+                let mut m = BTreeMap::new();
+                for _ in 0 .. n {
+                    let key = try!(self.decode_key(level - 1));
+                    if m.contains_key(&key) {
+                        return Err(DecodeError::DuplicateKey(Box::new(key)))
+                    }
+                    m.insert(key, try!(self.decode_value(level - 1)));
+                }
+                Ok(Value::Map(m))
+            }
+            (Type::Tagged, a) => {
+                let tag = try!(self.decoder.kernel.unsigned(a).map(Tag::of));
+                if self.decoder.config.skip_tags {
+                    return self.decode_value(level - 1)
+                }
+                let val = try!(self.decode_value(level - 1).map(|v| Value::Tagged(tag, Box::new(v))));
+                if self.decoder.config.check_tags && !values::check(&val) {
+                    return Err(DecodeError::InvalidTag(val))
+                }
+                Ok(val)
+            }
+            (Type::Unassigned { major: 7, info: a }, _) => Ok(Value::Simple(Simple::Unassigned(a))),
+            (Type::Reserved { major: 7, info: a }, _)   => Ok(Value::Simple(Simple::Reserved(a))),
+            ti => unexpected_type(&ti)
+        }
+    }
+
+    fn decode_key(&mut self, level: usize) -> DecodeResult<Key> {
+        match try!(self.decode_value(level)) {
+            Value::Bool(x)   => Ok(Key::Bool(x)),
+            Value::Bytes(x)  => Ok(Key::Bytes(x)),
+            Value::I8(x)     => Ok(Key::I8(x)),
+            Value::I16(x)    => Ok(Key::I16(x)),
+            Value::I32(x)    => Ok(Key::I32(x)),
+            Value::I64(x)    => Ok(Key::I64(x)),
+            Value::Text(x)   => Ok(Key::Text(x)),
+            Value::U8(x)     => Ok(Key::U8(x)),
+            Value::U16(x)    => Ok(Key::U16(x)),
+            Value::U32(x)    => Ok(Key::U32(x)),
+            Value::U64(x)    => Ok(Key::U64(x)),
+            other            => Err(DecodeError::InvalidKey(other))
+        }
+    }
+}
+
 // Tests ////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
@@ -852,7 +852,7 @@ mod tests {
     use std::io::Cursor;
     use super::*;
     use types::{Tag, Type};
-    use values::{Key, Simple, Value, ValueDecoder};
+    use values::{self, Key, Simple, Value};
 
     #[test]
     fn unsigned() {
@@ -936,7 +936,7 @@ mod tests {
         streaming.push_back(String::from("ming"));
         assert_eq!(
             Some(&streaming),
-            ValueDecoder::new(&decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
+            values::Cursor::new(&gen_decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
         );
     }
 
@@ -958,7 +958,7 @@ mod tests {
 
     #[test]
     fn empty_arrays() {
-        assert_eq!(Some(Value::Array(vec![])), decoder("9fff").value().ok());
+        assert_eq!(Some(Value::Array(vec![])), gen_decoder("9fff").value().ok());
 
         // Indefinite arrays not supported in direct decoding.
         match decoder("9fff").array() {
@@ -1008,8 +1008,8 @@ mod tests {
 
     #[test]
     fn object_value() {
-        let v = decoder("a2616101028103").value().ok().unwrap();
-        let d = ValueDecoder::new(&v);
+        let v = gen_decoder("a2616101028103").value().ok().unwrap();
+        let d = values::Cursor::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
         assert_eq!(Some(3), d.get(Key::U8(2)).at(0).u8())
     }
@@ -1026,11 +1026,11 @@ mod tests {
 
     #[test]
     fn tagged_value() {
-        match decoder("c11a514b67b0").value().ok() {
+        match gen_decoder("c11a514b67b0").value().ok() {
             Some(Value::Tagged(Tag::Timestamp, box Value::U32(1363896240))) => (),
             other => panic!("impossible tagged value: {:?}", other)
         }
-        match decoder("c1fb41d452d9ec200000").value().ok() {
+        match gen_decoder("c1fb41d452d9ec200000").value().ok() {
             Some(Value::Tagged(Tag::Timestamp, box Value::F64(1363896240.5))) => (),
             other => panic!("impossible tagged value: {:?}", other)
         }
@@ -1038,5 +1038,9 @@ mod tests {
 
     fn decoder(s: &str) -> Decoder<Cursor<Vec<u8>>> {
         Decoder::new(Config::default(), Cursor::new(s.from_hex().unwrap()))
+    }
+
+    fn gen_decoder(s: &str) -> GenericDecoder<Cursor<Vec<u8>>> {
+        GenericDecoder::from_decoder(decoder(s))
     }
 }

@@ -85,66 +85,6 @@ impl<W: WriteBytesExt> Encoder<W> {
         self.writer
     }
 
-    pub fn value(&mut self, x: &Value) -> EncodeResult {
-        match x {
-            &Value::Array(ref vv) => {
-                try!(self.array(vv.len()));
-                for v in vv {
-                    try!(self.value(v))
-                }
-                Ok(())
-            }
-            &Value::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
-            &Value::Bytes(Bytes::Chunks(ref bb)) => self.bytes_iter(bb.iter().map(|v| &v[..])),
-            &Value::Text(Text::Text(ref txt))    => self.text(txt),
-            &Value::Text(Text::Chunks(ref txt))  => self.text_iter(txt.iter().map(|v| &v[..])),
-            &Value::Map(ref m) => {
-                try!(self.object(m.len()));
-                for (k, v) in m {
-                    try!(self.key(k).and(self.value(v)))
-                }
-                Ok(())
-            }
-            &Value::Tagged(t, box ref val) => {
-                try!(self.tag(t));
-                self.value(val)
-            }
-            &Value::Undefined => self.undefined(),
-            &Value::Null      => self.null(),
-            &Value::Simple(s) => self.simple(s),
-            &Value::Bool(b)   => self.bool(b),
-            &Value::U8(n)     => self.u8(n),
-            &Value::U16(n)    => self.u16(n),
-            &Value::U32(n)    => self.u32(n),
-            &Value::U64(n)    => self.u64(n),
-            &Value::F32(n)    => self.f32(n),
-            &Value::F64(n)    => self.f64(n),
-            &Value::I8(n)     => self.i8(n),
-            &Value::I16(n)    => self.i16(n),
-            &Value::I32(n)    => self.i32(n),
-            &Value::I64(n)    => self.i64(n),
-            &Value::Break     => Err(EncodeError::InvalidValue(Value::Break))
-        }
-    }
-
-    pub fn key(&mut self, x: &Key) -> EncodeResult {
-        match x {
-            &Key::Bool(b) => self.bool(b),
-            &Key::I8(n)   => self.i8(n),
-            &Key::I16(n)  => self.i16(n),
-            &Key::I32(n)  => self.i32(n),
-            &Key::I64(n)  => self.i64(n),
-            &Key::U8(n)   => self.u8(n),
-            &Key::U16(n)  => self.u16(n),
-            &Key::U32(n)  => self.u32(n),
-            &Key::U64(n)  => self.u64(n),
-            &Key::Bytes(Bytes::Bytes(ref bb))  => self.bytes(&bb[..]),
-            &Key::Bytes(Bytes::Chunks(ref bb)) => self.bytes_iter(bb.iter().map(|v| &v[..])),
-            &Key::Text(Text::Text(ref txt))    => self.text(txt),
-            &Key::Text(Text::Chunks(ref txt))  => self.text_iter(txt.iter().map(|v| &v[..]))
-        }
-    }
-
     pub fn u8(&mut self, x: u8) -> EncodeResult {
         let ref mut w = self.writer;
         match x {
@@ -328,6 +268,91 @@ impl<W: WriteBytesExt> Encoder<W> {
             0x100...0xFFFF        => w.write_u8(t.major() << 5 | 25).and(w.write_u16::<BigEndian>(x as u16)).map_err(From::from),
             0x100000...0xFFFFFFFF => w.write_u8(t.major() << 5 | 26).and(w.write_u32::<BigEndian>(x as u32)).map_err(From::from),
             _                     => w.write_u8(t.major() << 5 | 27).and(w.write_u64::<BigEndian>(x)).map_err(From::from)
+        }
+    }
+}
+
+// Generic Encoder //////////////////////////////////////////////////////////
+
+/// A generic encoder encodes a `Value`.
+pub struct GenericEncoder<W> {
+    encoder: Encoder<W>
+}
+
+impl<W: WriteBytesExt> GenericEncoder<W> {
+    pub fn new(w: W) -> GenericEncoder<W> {
+        GenericEncoder { encoder: Encoder::new(w) }
+    }
+
+    pub fn from_encoder(e: Encoder<W>) -> GenericEncoder<W> {
+        GenericEncoder { encoder: e }
+    }
+
+    pub fn into_inner(self) -> Encoder<W> {
+        self.encoder
+    }
+
+    pub fn borrow_mut(&mut self) -> &mut Encoder<W> {
+        &mut self.encoder
+    }
+
+    pub fn value(&mut self, x: &Value) -> EncodeResult {
+        match x {
+            &Value::Array(ref vv) => {
+                try!(self.encoder.array(vv.len()));
+                for v in vv {
+                    try!(self.value(v))
+                }
+                Ok(())
+            }
+            &Value::Bytes(Bytes::Bytes(ref bb))  => self.encoder.bytes(&bb[..]),
+            &Value::Bytes(Bytes::Chunks(ref bb)) => self.encoder.bytes_iter(bb.iter().map(|v| &v[..])),
+            &Value::Text(Text::Text(ref txt))    => self.encoder.text(txt),
+            &Value::Text(Text::Chunks(ref txt))  => self.encoder.text_iter(txt.iter().map(|v| &v[..])),
+            &Value::Map(ref m) => {
+                try!(self.encoder.object(m.len()));
+                for (k, v) in m {
+                    try!(self.key(k).and(self.value(v)))
+                }
+                Ok(())
+            }
+            &Value::Tagged(t, box ref val) => {
+                try!(self.encoder.tag(t));
+                self.value(val)
+            }
+            &Value::Undefined => self.encoder.undefined(),
+            &Value::Null      => self.encoder.null(),
+            &Value::Simple(s) => self.encoder.simple(s),
+            &Value::Bool(b)   => self.encoder.bool(b),
+            &Value::U8(n)     => self.encoder.u8(n),
+            &Value::U16(n)    => self.encoder.u16(n),
+            &Value::U32(n)    => self.encoder.u32(n),
+            &Value::U64(n)    => self.encoder.u64(n),
+            &Value::F32(n)    => self.encoder.f32(n),
+            &Value::F64(n)    => self.encoder.f64(n),
+            &Value::I8(n)     => self.encoder.i8(n),
+            &Value::I16(n)    => self.encoder.i16(n),
+            &Value::I32(n)    => self.encoder.i32(n),
+            &Value::I64(n)    => self.encoder.i64(n),
+            &Value::Break     => Err(EncodeError::InvalidValue(Value::Break))
+        }
+    }
+
+    fn key(&mut self, x: &Key) -> EncodeResult {
+        match x {
+            &Key::Bool(b) => self.encoder.bool(b),
+            &Key::I8(n)   => self.encoder.i8(n),
+            &Key::I16(n)  => self.encoder.i16(n),
+            &Key::I32(n)  => self.encoder.i32(n),
+            &Key::I64(n)  => self.encoder.i64(n),
+            &Key::U8(n)   => self.encoder.u8(n),
+            &Key::U16(n)  => self.encoder.u16(n),
+            &Key::U32(n)  => self.encoder.u32(n),
+            &Key::U64(n)  => self.encoder.u64(n),
+            &Key::Bytes(Bytes::Bytes(ref bb))  => self.encoder.bytes(&bb[..]),
+            &Key::Bytes(Bytes::Chunks(ref bb)) => self.encoder.bytes_iter(bb.iter().map(|v| &v[..])),
+            &Key::Text(Text::Text(ref txt))    => self.encoder.text(txt),
+            &Key::Text(Text::Chunks(ref txt))  => self.encoder.text_iter(txt.iter().map(|v| &v[..]))
         }
     }
 }

@@ -5,7 +5,7 @@
 
 //! This module defines the generic `Value` AST as well as
 //! several  other types to represent CBOR values.
-//! A `ValueDecoder` can be used to deconstruct and traverse
+//! A `Cursor` can be used to deconstruct and traverse
 //! a `Value`.
 
 use std::collections::{BTreeMap, LinkedList};
@@ -81,37 +81,37 @@ pub enum Key {
     U64(u64)
 }
 
-/// A `ValueDecoder` allows conventient navigation in a `Value` AST.
+/// A `Cursor` allows conventient navigation in a `Value` AST.
 /// `Value`s can be converted to native Rust types if possible and
 /// collections can be traversed using `at` or `get`.
-pub struct ValueDecoder<'r> {
+pub struct Cursor<'r> {
     value: Option<&'r Value>
 }
 
-impl<'r> ValueDecoder<'r> {
-    pub fn new(v: &'r Value) -> ValueDecoder<'r> {
-        ValueDecoder { value: Some(v) }
+impl<'r> Cursor<'r> {
+    pub fn new(v: &'r Value) -> Cursor<'r> {
+        Cursor { value: Some(v) }
     }
 
-    fn of(v: Option<&'r Value>) -> ValueDecoder<'r> {
-        ValueDecoder { value: v }
+    fn of(v: Option<&'r Value>) -> Cursor<'r> {
+        Cursor { value: v }
     }
 
-    pub fn at(&self, i: usize) -> ValueDecoder<'r> {
+    pub fn at(&self, i: usize) -> Cursor<'r> {
         match self.value {
-            Some(&Value::Array(ref a)) => ValueDecoder::of(a.get(i)),
-            _                          => ValueDecoder::of(None)
+            Some(&Value::Array(ref a)) => Cursor::of(a.get(i)),
+            _                          => Cursor::of(None)
         }
     }
 
-    pub fn get(&self, k: Key) -> ValueDecoder<'r> {
+    pub fn get(&self, k: Key) -> Cursor<'r> {
         match self.value {
-            Some(&Value::Map(ref m)) => ValueDecoder::of(m.get(&k)),
-            _                        => ValueDecoder::of(None)
+            Some(&Value::Map(ref m)) => Cursor::of(m.get(&k)),
+            _                        => Cursor::of(None)
         }
     }
 
-    pub fn field(&self, s: &str) -> ValueDecoder<'r> {
+    pub fn field(&self, s: &str) -> Cursor<'r> {
         self.get(Key::Text(Text::Text(String::from(s))))
     }
 
@@ -119,18 +119,18 @@ impl<'r> ValueDecoder<'r> {
         self.value
     }
 
-    pub fn opt(&self) -> Option<ValueDecoder<'r>> {
+    pub fn opt(&self) -> Option<Cursor<'r>> {
         match self.value {
             Some(&Value::Null) => None,
-            Some(ref v)        => Some(ValueDecoder::new(v)),
+            Some(ref v)        => Some(Cursor::new(v)),
             _                  => None
         }
     }
 
-    pub fn maybe(&self) -> Option<ValueDecoder<'r>> {
+    pub fn maybe(&self) -> Option<Cursor<'r>> {
         match self.value {
             Some(&Value::Undefined) => None,
-            Some(ref v)             => Some(ValueDecoder::new(v)),
+            Some(ref v)             => Some(Cursor::new(v)),
             _                       => None
         }
     }

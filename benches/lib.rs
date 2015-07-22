@@ -11,7 +11,7 @@ extern crate rand;
 extern crate test;
 
 use cbor::random::gen_value;
-use cbor::{Config, Decoder, Encoder};
+use cbor::{Config, GenericDecoder, GenericEncoder};
 use quickcheck::StdGen;
 use rand::thread_rng;
 use std::io::Cursor;
@@ -20,19 +20,19 @@ use test::Bencher;
 
 fn mk_value(min: usize) -> Vec<u8> {
     let mut g = StdGen::new(thread_rng(), 255);
-    let mut e = Encoder::new(Cursor::new(Vec::new()));
-    e.array(min).unwrap();
+    let mut e = GenericEncoder::new(Cursor::new(Vec::new()));
+    e.borrow_mut().array(min).unwrap();
     for _ in 0 .. min {
         e.value(&gen_value(3, &mut g)).unwrap()
     }
-    e.into_writer().into_inner()
+    e.into_inner().into_writer().into_inner()
 }
 
 #[bench]
 fn random_value_roundtrip(b: &mut Bencher) {
     let mut w = Cursor::new(mk_value(30));
     b.iter(|| {
-        assert!(Decoder::new(Config::default(), &mut w).value().ok().is_some());
+        assert!(GenericDecoder::new(Config::default(), &mut w).value().ok().is_some());
         w.set_position(0);
     });
     let m = w.get_ref().len() as f64 / 1048576.0;
