@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Decoder` struct in crate `cbor`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Decoder">
+
+    <title>cbor::decoder::Decoder - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'><a href='../index.html'>cbor</a>::<wbr><a href='index.html'>decoder</a></p><script>window.sidebarCurrent = {name: 'Decoder', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>cbor</a>::<wbr><a href='index.html'>decoder</a>::<wbr><a class='struct' href=''>Decoder</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-20122' class='srclink' href='../../src/cbor/decoder.rs.html#479-482' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Decoder&lt;R&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>The actual decoder type definition</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;R: <a class='trait' href='../../byteorder/new/trait.ReadBytesExt.html' title='byteorder::new::ReadBytesExt'>ReadBytesExt</a>&gt; <a class='struct' href='../../cbor/decoder/struct.Decoder.html' title='cbor::decoder::Decoder'>Decoder</a>&lt;R&gt;</code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(c: <a class='struct' href='../../cbor/decoder/struct.Config.html' title='cbor::decoder::Config'>Config</a>, r: R) -&gt; <a class='struct' href='../../cbor/decoder/struct.Decoder.html' title='cbor::decoder::Decoder'>Decoder</a>&lt;R&gt;</code></h4>
+<h4 id='method.into_reader' class='method'><code>fn <a href='#method.into_reader' class='fnname'>into_reader</a>(self) -&gt; R</code></h4>
+<h4 id='method.simple' class='method'><code>fn <a href='#method.simple' class='fnname'>simple</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='enum' href='../../cbor/value/enum.Simple.html' title='cbor::value::Simple'>Simple</a>&gt;</code></h4>
+<h4 id='method.bool' class='method'><code>fn <a href='#method.bool' class='fnname'>bool</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>&gt;</code></h4>
+<h4 id='method.u8' class='method'><code>fn <a href='#method.u8' class='fnname'>u8</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>&gt;</code></h4>
+<h4 id='method.u16' class='method'><code>fn <a href='#method.u16' class='fnname'>u16</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>&gt;</code></h4>
+<h4 id='method.u32' class='method'><code>fn <a href='#method.u32' class='fnname'>u32</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt;</code></h4>
+<h4 id='method.u64' class='method'><code>fn <a href='#method.u64' class='fnname'>u64</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u64.html'>u64</a>&gt;</code></h4>
+<h4 id='method.i8' class='method'><code>fn <a href='#method.i8' class='fnname'>i8</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.i8.html'>i8</a>&gt;</code></h4>
+<h4 id='method.i16' class='method'><code>fn <a href='#method.i16' class='fnname'>i16</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.i16.html'>i16</a>&gt;</code></h4>
+<h4 id='method.i32' class='method'><code>fn <a href='#method.i32' class='fnname'>i32</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.i32.html'>i32</a>&gt;</code></h4>
+<h4 id='method.i64' class='method'><code>fn <a href='#method.i64' class='fnname'>i64</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a>&gt;</code></h4>
+<h4 id='method.f16' class='method'><code>fn <a href='#method.f16' class='fnname'>f16</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>&gt;</code></h4>
+<h4 id='method.f32' class='method'><code>fn <a href='#method.f32' class='fnname'>f32</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>&gt;</code></h4>
+<h4 id='method.f64' class='method'><code>fn <a href='#method.f64' class='fnname'>f64</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a>&gt;</code></h4>
+<h4 id='method.bytes' class='method'><code>fn <a href='#method.bytes' class='fnname'>bytes</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='struct' href='http://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>&gt;&gt;</code></h4>
+<div class='docblock'><p>Decode a single byte string.</p>
+
+<p>Please note that indefinite byte strings are not supported by this
+method (Consider using <code>Decoder::bytes_iter()</code> for this use-case).</p>
+</div><h4 id='method.bytes_iter' class='method'><code>fn <a href='#method.bytes_iter' class='fnname'>bytes_iter</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='struct' href='../../cbor/decoder/struct.BytesIter.html' title='cbor::decoder::BytesIter'>BytesIter</a>&lt;R&gt;&gt;</code></h4>
+<div class='docblock'><p>Decode an indefinite byte string.</p>
+</div><h4 id='method.text' class='method'><code>fn <a href='#method.text' class='fnname'>text</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='struct' href='http://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>&gt;</code></h4>
+<div class='docblock'><p>Decode a single UTF-8 encoded String.</p>
+
+<p>Please note that indefinite strings are not supported by this method
+(Consider using <code>Decoder::text_iter()</code> for this use-case).</p>
+</div><h4 id='method.text_iter' class='method'><code>fn <a href='#method.text_iter' class='fnname'>text_iter</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='struct' href='../../cbor/decoder/struct.TextIter.html' title='cbor::decoder::TextIter'>TextIter</a>&lt;R&gt;&gt;</code></h4>
+<div class='docblock'><p>Decode an indefinite string.</p>
+</div><h4 id='method.tag' class='method'><code>fn <a href='#method.tag' class='fnname'>tag</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='enum' href='../../cbor/types/enum.Tag.html' title='cbor::types::Tag'>Tag</a>&gt;</code></h4>
+<div class='docblock'><p>Decode a <code>Tag</code>.
+If no tag is found an <code>UnexpectedType</code> error is returned.</p>
+</div><h4 id='method.array' class='method'><code>fn <a href='#method.array' class='fnname'>array</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;</code></h4>
+<div class='docblock'><p>Decode the begin of an array. The length is returned unless it
+exceeds the configured maximum.</p>
+
+<p>Please note that indefinite arrays are not supported by this method
+(Consider using <code>Decoder::value()</code> for this use-case).</p>
+</div><h4 id='method.array_begin' class='method'><code>fn <a href='#method.array_begin' class='fnname'>array_begin</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Decode the begin of an indefinite array.
+After this one can continue decoding items, but a <code>Break</code> value
+will be encountered at some unknown point.</p>
+
+<p>(Consider using <code>or_break</code> around every decoding step within an
+indefinite array to handle this case).</p>
+</div><h4 id='method.object' class='method'><code>fn <a href='#method.object' class='fnname'>object</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;</code></h4>
+<div class='docblock'><p>Decode the begin of an object. The size (number of key-value pairs)
+is returned unless it exceeds the configured maximum.</p>
+
+<p>Please note that indefinite objects are not supported by this method
+(Consider using <code>Decoder::value()</code> for this use-case).</p>
+</div><h4 id='method.object_begin' class='method'><code>fn <a href='#method.object_begin' class='fnname'>object_begin</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Decode the begin of an indefinite object.
+After this one can continue decoding items, but a <code>Break</code> value
+will be encountered at some unknown point.</p>
+
+<p>(Consider using <code>or_break</code> around every decoding step within an
+indefinite object to handle this case).</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div>
+            <div class="shortcuts">
+                <h1>Keyboard Shortcuts</h1>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h1>Search Tricks</h1>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>typedef</code> (or
+                    <code>tdef</code>).
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "cbor";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../jquery.js"></script>
+    <script src="../../main.js"></script>
+    
+    <script async src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,7 +1,0 @@
-= CBOR Codec
-
-image:https://img.shields.io/badge/license-MPL_2.0-blue.svg["License: MPL-2.0", link="https://www.mozilla.org/MPL/2.0/"]
-image:https://travis-ci.org/twittner/cbor-codec.svg?branch=master["Build Status", link="https://travis-ci.org/twittner/cbor-codec"]
-
-Encoder and decoder implementations for the Concise Binary Object
-Representation (CBOR, http://tools.ietf.org/html/rfc7049[RFC 7049]).

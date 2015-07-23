@@ -1,6 +1,0 @@
-language: rust
-rust: nightly
-script:
-    - cargo build --features="random"
-    - cargo test --features="random"
-    - cargo bench --features="random"
