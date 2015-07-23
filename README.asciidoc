@@ -5,3 +5,7 @@ image:https://travis-ci.org/twittner/cbor-codec.svg?branch=master["Build Status"
 
 Encoder and decoder implementations for the Concise Binary Object
 Representation (CBOR, http://tools.ietf.org/html/rfc7049[RFC 7049]).
+
+== API documentation
+
+Documentation is available from http://twittner.github.io/cbor-codec/doc/cbor/
