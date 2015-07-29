@@ -8,7 +8,6 @@
 //! This module is only available with `--features="random"`.
 
 use quickcheck::{Arbitrary, Gen};
-use rand::Rng;
 use std::collections::{BTreeMap, LinkedList};
 use types::Tag;
 use value::{Value, Simple, Key, Bytes, Text};

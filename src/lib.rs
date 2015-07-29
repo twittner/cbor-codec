@@ -15,9 +15,6 @@ extern crate rustc_serialize;
 #[cfg(feature="random")]
 extern crate quickcheck;
 
-#[cfg(feature="random")]
-extern crate rand;
-
 pub mod types;
 pub mod value;
 pub mod decoder;
