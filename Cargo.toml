@@ -4,9 +4,8 @@ version       = "0.1.0"
 authors       = ["Toralf Wittner <tw@dtex.org>"]
 license       = "MPL-2.0"
 description   = "CBOR Codec implementation"
-homepage      = "https://github.com/twittner/cbor-codec"
-repository    = "git@github.com:twittner/cbor-codec.git"
-documentation = "http://twittner.github.io/cbor-codec/doc/cbor/"
+repository    = "https://github.com/twittner/cbor-codec"
+documentation = "https://twittner.github.io/cbor-codec/doc/cbor/"
 keywords      = ["cbor", "encoding", "binary"]
 
 [lib]
