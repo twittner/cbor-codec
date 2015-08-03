@@ -376,9 +376,9 @@ impl<W: WriteBytesExt> GenericEncoder<W> {
                 }
                 Ok(())
             }
-            &Value::Tagged(t, box ref val) => {
+            &Value::Tagged(t, ref val) => {
                 try!(self.encoder.tag(t));
-                self.value(val)
+                self.value(&*val)
             }
             &Value::Undefined => self.encoder.undefined(),
             &Value::Null      => self.encoder.null(),
