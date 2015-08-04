@@ -1,6 +1,6 @@
 [package]
 name          = "cbor-codec"
-version       = "0.1.0"
+version       = "0.1.1"
 authors       = ["Toralf Wittner <tw@dtex.org>"]
 license       = "MPL-2.0"
 description   = "CBOR Codec implementation"

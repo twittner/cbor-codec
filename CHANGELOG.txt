@@ -1,0 +1,8 @@
+0.1.1
+-----
+- Workaround unstable features.
+  For now this requires `libc` as an additional dependency.
+
+0.1.0
+-----
+- Initial release
