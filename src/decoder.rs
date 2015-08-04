@@ -87,7 +87,6 @@
 //! ```
 
 use byteorder::{self, BigEndian, ReadBytesExt};
-use std::{u64, usize};
 use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
 use std::error::Error;
@@ -295,7 +294,6 @@ pub struct Kernel<R> {
 
 impl<R: ReadBytesExt> Kernel<R> {
     pub fn new(r: R) -> Kernel<R> {
-        assert!(usize::BITS <= u64::BITS);
         Kernel { reader: r }
     }
 
@@ -407,9 +405,9 @@ impl<R: ReadBytesExt> Kernel<R> {
                 let exp   = half >> 10 & 0x1F;
                 let mant  = half & 0x3FF;
                 let value = match exp {
-                    0  => f32::ldexp(mant as f32, -24),
+                    0  => ffi::c_ldexpf(mant as f32, -24),
                     31 => if mant == 0 { f32::INFINITY } else { f32::NAN },
-                    _  => f32::ldexp(mant as f32 + 1024.0, exp as isize - 25)
+                    _  => ffi::c_ldexpf(mant as f32 + 1024.0, exp as isize - 25)
                 };
                 Ok(if half & 0x8000 == 0 { value } else { - value })
             }
@@ -469,6 +467,20 @@ impl<R: ReadBytesExt> Kernel<R> {
     }
 }
 
+// Workaround to not require the currently unstable `f32::ldexp`:
+mod ffi {
+    use libc::c_int;
+
+    extern {
+        pub fn ldexpf(x: f32, exp: c_int) -> f32;
+    }
+
+    #[inline]
+    pub fn c_ldexpf(x: f32, exp: isize) -> f32 {
+        unsafe { ldexpf(x, exp as c_int) }
+    }
+}
+
 fn unexpected_type<A>(ti: &TypeInfo) -> DecodeResult<A> {
     Err(DecodeError::UnexpectedType { datatype: ti.0, info: ti.1 })
 }
@@ -483,7 +495,6 @@ pub struct Decoder<R> {
 
 impl<R: ReadBytesExt> Decoder<R> {
     pub fn new(c: Config, r: R) -> Decoder<R> {
-        assert!(usize::BITS <= u64::BITS);
         Decoder { kernel: Kernel::new(r), config: c }
     }
 
@@ -1101,11 +1112,11 @@ mod tests {
     #[test]
     fn tagged_value() {
         match gen_decoder("c11a514b67b0").value().ok() {
-            Some(Value::Tagged(Tag::Timestamp, box Value::U32(1363896240))) => (),
+            Some(Value::Tagged(Tag::Timestamp, ref v)) if **v == Value::U32(1363896240) => (),
             other => panic!("impossible tagged value: {:?}", other)
         }
         match gen_decoder("c1fb41d452d9ec200000").value().ok() {
-            Some(Value::Tagged(Tag::Timestamp, box Value::F64(1363896240.5))) => (),
+            Some(Value::Tagged(Tag::Timestamp, ref v)) if **v == Value::F64(1363896240.5) => (),
             other => panic!("impossible tagged value: {:?}", other)
         }
     }

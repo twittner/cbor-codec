@@ -5,9 +5,8 @@
 
 //! CBOR (RFC 7049) encoder and decoder implementations.
 
-#![feature(box_patterns, float_extras, num_bits_bytes)]
-
 extern crate byteorder;
+extern crate libc;
 
 #[cfg(test)]
 extern crate rustc_serialize;
