@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-18472' class='srclink' href='../../src/cbor/decoder.rs.html#203-208' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-18470' class='srclink' href='../../src/cbor/decoder.rs.html#203-208' title='goto source code'>[src]</a></span></h1>
 <pre class='rust fn'>pub fn or_break&lt;A&gt;(r: <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;A&gt;) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='enum' href='http://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;A&gt;&gt;</pre><div class='docblock'><p>When decoding an indefinite item, every element item can be a <code>Break</code>
 value. By wrapping it in <code>or_break</code>, this case can be handled more
 conveniently.</p>
@@ -84,8 +84,8 @@ conveniently.</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

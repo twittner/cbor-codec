@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/twittner/.cargo/registry/src/github.com-0a35038f75765ae4/quickcheck-0.2.20/src/arbitrary.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/twittner/.multirust/toolchains/nightly/cargo/registry/src/github.com-0a35038f75765ae4/quickcheck-0.2.21/src/arbitrary.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>arbitrary.rs.html -- source</title>
@@ -715,6 +715,11 @@
 <span id="673">673</span>
 <span id="674">674</span>
 <span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>char</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>collections</span>::<span class='ident'>hash_map</span>::<span class='ident'>HashMap</span>;
@@ -1085,7 +1090,11 @@
             <span class='kw'>impl</span> <span class='ident'>Arbitrary</span> <span class='kw'>for</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span> {
                 <span class='kw'>fn</span> <span class='ident'>arbitrary</span><span class='op'>&lt;</span><span class='ident'>G</span>: <span class='ident'>Gen</span><span class='op'>&gt;</span>(<span class='ident'>g</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>G</span>) <span class='op'>-&gt;</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span> {
                     <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>allow</span>(<span class='ident'>trivial_numeric_casts</span>)]</span>
-                    <span class='kw'>let</span> <span class='ident'>s</span> <span class='op'>=</span> <span class='ident'>g</span>.<span class='ident'>size</span>(); <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='ident'>s</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>)
+                    <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>s</span> <span class='op'>=</span> <span class='ident'>g</span>.<span class='ident'>size</span>() <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>;
+                    <span class='kw'>if</span> <span class='ident'>s</span> <span class='op'>==</span> <span class='number'>0</span> {
+                        <span class='ident'>s</span> <span class='op'>=</span> <span class='ident'>s</span> <span class='op'>+</span> <span class='number'>1</span>;
+                    }
+                    <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='ident'>s</span>)
                 }
                 <span class='kw'>fn</span> <span class='ident'>shrink</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>Box</span><span class='op'>&lt;</span><span class='ident'>Iterator</span><span class='op'>&lt;</span><span class='ident'>Item</span><span class='op'>=</span><span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span><span class='op'>&gt;&gt;</span> {
                     <span class='macro'>unsigned_shrinker</span><span class='macro'>!</span>(<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>);
@@ -1147,7 +1156,8 @@
         $(
             <span class='kw'>impl</span> <span class='ident'>Arbitrary</span> <span class='kw'>for</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span> {
                 <span class='kw'>fn</span> <span class='ident'>arbitrary</span><span class='op'>&lt;</span><span class='ident'>G</span>: <span class='ident'>Gen</span><span class='op'>&gt;</span>(<span class='ident'>g</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>G</span>) <span class='op'>-&gt;</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span> {
-                    <span class='kw'>let</span> <span class='ident'>s</span> <span class='op'>=</span> <span class='ident'>g</span>.<span class='ident'>size</span>(); <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='op'>-</span>(<span class='ident'>s</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>), <span class='ident'>s</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>)
+                    <span class='kw'>let</span> <span class='ident'>s</span> <span class='op'>=</span> <span class='ident'>g</span>.<span class='ident'>size</span>() <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>;
+                    <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='op'>-</span><span class='ident'>s</span>, <span class='kw'>if</span> <span class='ident'>s</span> <span class='op'>==</span> <span class='number'>0</span> { <span class='number'>1</span> } <span class='kw'>else</span> { <span class='ident'>s</span> })
                 }
                 <span class='kw'>fn</span> <span class='ident'>shrink</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>Box</span><span class='op'>&lt;</span><span class='ident'>Iterator</span><span class='op'>&lt;</span><span class='ident'>Item</span><span class='op'>=</span><span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span><span class='op'>&gt;&gt;</span> {
                     <span class='macro'>signed_shrinker</span><span class='macro'>!</span>(<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>);
@@ -1427,8 +1437,8 @@
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

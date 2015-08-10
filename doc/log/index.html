@@ -90,8 +90,7 @@ macros to log whatever information will be useful to downstream consumers.</p>
             }
         }
     }
-}
-</pre>
+}</pre>
 
 <h2 id="in-executables" class='section-header'><a
                            href="#in-executables">In executables</a></h2>
@@ -118,8 +117,7 @@ initialized will be ignored.</p>
     <span class='macro'>info</span><span class='macro'>!</span>(<span class='string'>&quot;starting up&quot;</span>);
 
     <span class='comment'>// ...</span>
-}
-</pre>
+}</pre>
 
 <h1 id="logger-implementations" class='section-header'><a
                            href="#logger-implementations">Logger implementations</a></h1>
@@ -160,8 +158,7 @@ logger:</p>
         <span class='ident'>max_log_level</span>.<span class='ident'>set</span>(<span class='ident'>LogLevelFilter</span>::<span class='ident'>Info</span>);
         <span class='ident'>Box</span>::<span class='ident'>new</span>(<span class='ident'>SimpleLogger</span>)
     })
-}
-</pre>
+}</pre>
 </div><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
 <table>
                     <tr class=' module-item'>
@@ -358,8 +355,8 @@ framework.</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

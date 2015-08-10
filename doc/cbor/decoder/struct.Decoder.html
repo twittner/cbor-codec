@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-20122' class='srclink' href='../../src/cbor/decoder.rs.html#479-482' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-20125' class='srclink' href='../../src/cbor/decoder.rs.html#492-495' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Decoder&lt;R&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>The actual decoder type definition</p>
@@ -86,7 +86,7 @@ If no tag is found an <code>UnexpectedType</code> error is returned.</p>
 exceeds the configured maximum.</p>
 
 <p>Please note that indefinite arrays are not supported by this method
-(Consider using <code>Decoder::value()</code> for this use-case).</p>
+(Consider using <code>Decoder::array_begin()</code> for this use-case).</p>
 </div><h4 id='method.array_begin' class='method'><code>fn <a href='#method.array_begin' class='fnname'>array_begin</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
 <div class='docblock'><p>Decode the begin of an indefinite array.
 After this one can continue decoding items, but a <code>Break</code> value
@@ -99,7 +99,7 @@ indefinite array to handle this case).</p>
 is returned unless it exceeds the configured maximum.</p>
 
 <p>Please note that indefinite objects are not supported by this method
-(Consider using <code>Decoder::value()</code> for this use-case).</p>
+(Consider using <code>Decoder::object_begin</code> for this use-case).</p>
 </div><h4 id='method.object_begin' class='method'><code>fn <a href='#method.object_begin' class='fnname'>object_begin</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
 <div class='docblock'><p>Decode the begin of an indefinite object.
 After this one can continue decoding items, but a <code>Break</code> value
@@ -107,6 +107,14 @@ will be encountered at some unknown point.</p>
 
 <p>(Consider using <code>or_break</code> around every decoding step within an
 indefinite object to handle this case).</p>
+</div></div><h3 class='impl'><code>impl&lt;R: <a class='trait' href='../../byteorder/new/trait.ReadBytesExt.html' title='byteorder::new::ReadBytesExt'>ReadBytesExt</a> + <a class='trait' href='../../cbor/skip/trait.Skip.html' title='cbor::skip::Skip'>Skip</a>&gt; <a class='struct' href='../../cbor/decoder/struct.Decoder.html' title='cbor::decoder::Decoder'>Decoder</a>&lt;R&gt;</code></h3><div class='impl-items'><h4 id='method.skip' class='method'><code>fn <a href='#method.skip' class='fnname'>skip</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Skip over a single CBOR value.</p>
+
+<p>Please note that this function does not validate the value hence
+it might not even be well-formed CBOR. Instead <code>skip</code> is an
+optimisation over <code>GenericDecoder::value()</code> and generally only
+determines as much information as necessary to safely skip a value
+without keeping all of it in memory.</p>
 </div></div></section>
     <section id='search' class="content hidden"></section>
 
@@ -142,8 +150,8 @@ indefinite object to handle this case).</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

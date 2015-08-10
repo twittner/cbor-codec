@@ -67,8 +67,7 @@ implement <code>Read</code> and <code>Write</code>.</p>
 <span class='comment'>// Note that we use type parameters to indicate which kind of byte order</span>
 <span class='comment'>// we want!</span>
 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>517</span>, <span class='ident'>rdr</span>.<span class='ident'>read_u16</span>::<span class='op'>&lt;</span><span class='ident'>BigEndian</span><span class='op'>&gt;</span>().<span class='ident'>unwrap</span>());
-<span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>768</span>, <span class='ident'>rdr</span>.<span class='ident'>read_u16</span>::<span class='op'>&lt;</span><span class='ident'>BigEndian</span><span class='op'>&gt;</span>().<span class='ident'>unwrap</span>());
-</pre>
+<span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>768</span>, <span class='ident'>rdr</span>.<span class='ident'>read_u16</span>::<span class='op'>&lt;</span><span class='ident'>BigEndian</span><span class='op'>&gt;</span>().<span class='ident'>unwrap</span>());</pre>
 
 <p>Write unsigned 16 bit little-endian integers to a <code>Write</code> type:</p>
 <pre class='rust rust-example-rendered'>
@@ -77,8 +76,7 @@ implement <code>Read</code> and <code>Write</code>.</p>
 <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>wtr</span> <span class='op'>=</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
 <span class='ident'>wtr</span>.<span class='ident'>write_u16</span>::<span class='op'>&lt;</span><span class='ident'>LittleEndian</span><span class='op'>&gt;</span>(<span class='number'>517</span>).<span class='ident'>unwrap</span>();
 <span class='ident'>wtr</span>.<span class='ident'>write_u16</span>::<span class='op'>&lt;</span><span class='ident'>LittleEndian</span><span class='op'>&gt;</span>(<span class='number'>768</span>).<span class='ident'>unwrap</span>();
-<span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>wtr</span>, <span class='macro'>vec</span><span class='macro'>!</span>[<span class='number'>5</span>, <span class='number'>2</span>, <span class='number'>0</span>, <span class='number'>3</span>]);
-</pre>
+<span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>wtr</span>, <span class='macro'>vec</span><span class='macro'>!</span>[<span class='number'>5</span>, <span class='number'>2</span>, <span class='number'>0</span>, <span class='number'>3</span>]);</pre>
 </div><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
 <table>
                     <tr class=' module-item'>
@@ -189,8 +187,8 @@ implement <code>Read</code> and <code>Write</code>.</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

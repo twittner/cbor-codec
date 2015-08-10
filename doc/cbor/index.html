@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/cbor/lib.rs.html#6-31' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-0' class='srclink' href='../src/cbor/lib.rs.html#6-28' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>CBOR (RFC 7049) encoder and decoder implementations.</p>
 </div><h2 id='reexports' class='section-header'><a href="#reexports">Reexports</a></h2>
 <table><tr><td><code>pub use decoder::{<a class='struct' href='../cbor/decoder/struct.Config.html' title='cbor::decoder::Config'>Config</a>, <a class='struct' href='../cbor/decoder/struct.Decoder.html' title='cbor::decoder::Decoder'>Decoder</a>, <a class='enum' href='../cbor/decoder/enum.DecodeError.html' title='cbor::decoder::DecodeError'>DecodeError</a>, <a class='type' href='../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>, <a class='struct' href='../cbor/decoder/struct.GenericDecoder.html' title='cbor::decoder::GenericDecoder'>GenericDecoder</a>};</code></td></tr><tr><td><code>pub use decoder::{<a class='fn' href='../cbor/decoder/fn.opt.html' title='cbor::decoder::opt'>opt</a>, <a class='fn' href='../cbor/decoder/fn.maybe.html' title='cbor::decoder::maybe'>maybe</a>, <a class='fn' href='../cbor/decoder/fn.or_break.html' title='cbor::decoder::or_break'>or_break</a>};</code></td></tr><tr><td><code>pub use encoder::{<a class='struct' href='../cbor/encoder/struct.Encoder.html' title='cbor::encoder::Encoder'>Encoder</a>, <a class='enum' href='../cbor/encoder/enum.EncodeError.html' title='cbor::encoder::EncodeError'>EncodeError</a>, <a class='type' href='../cbor/encoder/type.EncodeResult.html' title='cbor::encoder::EncodeResult'>EncodeResult</a>, <a class='struct' href='../cbor/encoder/struct.GenericEncoder.html' title='cbor::encoder::GenericEncoder'>GenericEncoder</a>};</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
@@ -75,6 +75,15 @@ encoder implementation.</p>
                                title='cbor::random'>random</a></td>
                         <td class='docblock short'>
                              <p>Generate random <code>cbor::Value</code>s.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='mod' href='skip/index.html'
+                               title='cbor::skip'>skip</a></td>
+                        <td class='docblock short'>
+                             <p><code>Skip</code> trait to allow efficient skipping of consecutive bytes.</p>
 
                         </td>
                     </tr>
@@ -134,8 +143,8 @@ a <code>Value</code>.</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

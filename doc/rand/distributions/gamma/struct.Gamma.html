@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-1367' class='srclink' href='../../../src/rand/distributions/gamma.rs.html#53-55' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-1355' class='srclink' href='../../../src/rand/distributions/gamma.rs.html#53-55' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Gamma {
     // some fields omitted
 }</pre><div class='docblock'><p>The Gamma distribution <code>Gamma(shape, scale)</code> distribution.</p>
@@ -68,8 +68,7 @@ falling back to directly sampling from an Exponential for <code>shape == 1</code
 
 <span class='kw'>let</span> <span class='ident'>gamma</span> <span class='op'>=</span> <span class='ident'>Gamma</span>::<span class='ident'>new</span>(<span class='number'>2.0</span>, <span class='number'>5.0</span>);
 <span class='kw'>let</span> <span class='ident'>v</span> <span class='op'>=</span> <span class='ident'>gamma</span>.<span class='ident'>ind_sample</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>rand</span>::<span class='ident'>thread_rng</span>());
-<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;{} is from a Gamma(2, 5) distribution&quot;</span>, <span class='ident'>v</span>);
-</pre>
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;{} is from a Gamma(2, 5) distribution&quot;</span>, <span class='ident'>v</span>);</pre>
 
 <p>[1]: George Marsaglia and Wai Wan Tsang. 2000. &quot;A Simple Method
 for Generating Gamma Variables&quot; <em>ACM Trans. Math. Softw.</em> 26, 3
@@ -119,8 +118,8 @@ distribution.</p>
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

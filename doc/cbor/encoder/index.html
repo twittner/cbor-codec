@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-22354' class='srclink' href='../../src/cbor/encoder.rs.html#6-561' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-23075' class='srclink' href='../../src/cbor/encoder.rs.html#6-561' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>CBOR (<a href="http://tools.ietf.org/html/rfc7049">RFC 7049</a>)
 encoder implementation.</p>
 
@@ -65,8 +65,7 @@ CBOR, and a <code>GenericEncoder</code> which encodes a <code>Value</code> into 
     <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>e</span> <span class='op'>=</span> <span class='ident'>Encoder</span>::<span class='ident'>new</span>(<span class='ident'>Cursor</span>::<span class='ident'>new</span>(<span class='ident'>Vec</span>::<span class='ident'>new</span>()));
     <span class='ident'>e</span>.<span class='ident'>u16</span>(<span class='number'>1000</span>).<span class='ident'>unwrap</span>();
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='string'>&quot;1903e8&quot;</span>.<span class='ident'>from_hex</span>().<span class='ident'>unwrap</span>(), <span class='ident'>e</span>.<span class='ident'>into_writer</span>().<span class='ident'>into_inner</span>())
-}
-</pre>
+}</pre>
 
 <h1 id="example-2:-direct-encoding-(indefinite-string)" class='section-header'><a
                            href="#example-2:-direct-encoding-(indefinite-string)">Example 2: Direct encoding (indefinite string)</a></h1><pre class='rust rust-example-rendered'>
@@ -82,8 +81,7 @@ CBOR, and a <code>GenericEncoder</code> which encodes a <code>Value</code> into 
     <span class='ident'>e</span>.<span class='ident'>text_iter</span>(<span class='macro'>vec</span><span class='macro'>!</span>[<span class='string'>&quot;strea&quot;</span>, <span class='string'>&quot;ming&quot;</span>].<span class='ident'>into_iter</span>()).<span class='ident'>unwrap</span>();
     <span class='kw'>let</span> <span class='ident'>output</span> <span class='op'>=</span> <span class='string'>&quot;7f657374726561646d696e67ff&quot;</span>.<span class='ident'>from_hex</span>().<span class='ident'>unwrap</span>();
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>output</span>, <span class='ident'>e</span>.<span class='ident'>into_writer</span>().<span class='ident'>into_inner</span>())
-}
-</pre>
+}</pre>
 
 <h1 id="example-3:-direct-encoding-(nested-array)" class='section-header'><a
                            href="#example-3:-direct-encoding-(nested-array)">Example 3: Direct encoding (nested array)</a></h1><pre class='rust rust-example-rendered'>
@@ -103,8 +101,7 @@ CBOR, and a <code>GenericEncoder</code> which encodes a <code>Value</code> into 
      .<span class='ident'>unwrap</span>();
     <span class='kw'>let</span> <span class='ident'>output</span> <span class='op'>=</span> <span class='string'>&quot;8301820203820405&quot;</span>.<span class='ident'>from_hex</span>().<span class='ident'>unwrap</span>();
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>output</span>, <span class='ident'>e</span>.<span class='ident'>into_writer</span>().<span class='ident'>into_inner</span>())
-}
-</pre>
+}</pre>
 </div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                     <tr class=' module-item'>
@@ -177,8 +174,8 @@ CBOR, and a <code>GenericEncoder</code> which encodes a <code>Value</code> into 
                 <p>
                     Accepted types are: <code>fn</code>, <code>mod</code>,
                     <code>struct</code>, <code>enum</code>,
-                    <code>trait</code>, <code>typedef</code> (or
-                    <code>tdef</code>).
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
                 </p>
 
                 <p>

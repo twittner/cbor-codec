@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors['rand'] = [];implementors['quickcheck'] = ["impl&lt;R: <a class='trait' href='rand/trait.Rng.html' title='rand::Rng'>Rng</a>&gt; <a class='trait' href='rand/trait.Rng.html' title='rand::Rng'>Rng</a> for <a class='struct' href='quickcheck/struct.StdGen.html' title='quickcheck::StdGen'>StdGen</a>&lt;R&gt;",];
+implementors['rand'] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
