@@ -94,6 +94,7 @@ use std::f32;
 use std::fmt::{self, Debug};
 use std::io;
 use std::string;
+use skip::Skip;
 use types::{Tag, Type};
 use value::{self, Bytes, Key, Simple, Text, Value};
 
@@ -614,7 +615,7 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// exceeds the configured maximum.
     ///
     /// Please note that indefinite arrays are not supported by this method
-    /// (Consider using `Decoder::value()` for this use-case).
+    /// (Consider using `Decoder::array_begin()` for this use-case).
     pub fn array(&mut self) -> DecodeResult<usize> {
         match try!(self.typeinfo()) {
             (Type::Array, 31) => unexpected_type(&(Type::Array, 31)),
@@ -646,7 +647,7 @@ impl<R: ReadBytesExt> Decoder<R> {
     /// is returned unless it exceeds the configured maximum.
     ///
     /// Please note that indefinite objects are not supported by this method
-    /// (Consider using `Decoder::value()` for this use-case).
+    /// (Consider using `Decoder::object_begin` for this use-case).
     pub fn object(&mut self) -> DecodeResult<usize> {
         match try!(self.typeinfo()) {
             (Type::Object, 31) => unexpected_type(&(Type::Object, 31)),
@@ -687,6 +688,106 @@ impl<R: ReadBytesExt> Decoder<R> {
         }
         let start = self.config.max_nesting;
         go(self, start)
+    }
+}
+
+impl<R: ReadBytesExt + Skip> Decoder<R> {
+    /// Skip over a single CBOR value.
+    ///
+    /// Please note that this function does not validate the value hence
+    /// it might not even be well-formed CBOR. Instead `skip` is an
+    /// optimisation over `GenericDecoder::value()` and generally only
+    /// determines as much information as necessary to safely skip a value
+    /// without keeping all of it in memory.
+    pub fn skip(&mut self) -> DecodeResult<()> {
+        let start = self.config.max_nesting;
+        self.skip_value(start).and(Ok(()))
+    }
+
+    fn skip_value(&mut self, level: usize) -> DecodeResult<bool> {
+        if level == 0 {
+            return Err(DecodeError::TooNested)
+        }
+        match try!(self.typeinfo()) {
+            ti@(Type::UInt8, _)  => self.kernel.u8(&ti).and(Ok(true)),
+            ti@(Type::UInt16, _) => self.kernel.u16(&ti).and(Ok(true)),
+            ti@(Type::UInt32, _) => self.kernel.u32(&ti).and(Ok(true)),
+            ti@(Type::UInt64, _) => self.kernel.u64(&ti).and(Ok(true)),
+            ti@(Type::Int8, _)   => self.kernel.i8(&ti).and(Ok(true)),
+            ti@(Type::Int16, _)  => self.kernel.i16(&ti).and(Ok(true)),
+            ti@(Type::Int32, _)  => self.kernel.i32(&ti).and(Ok(true)),
+            ti@(Type::Int64, _)  => self.kernel.i64(&ti).and(Ok(true)),
+            (Type::Bool, _)      => Ok(true),
+            (Type::Null, _)      => Ok(true),
+            (Type::Undefined, _) => Ok(true),
+            (Type::Break, _)     => Ok(false),
+            (Type::Float16, _)   => {
+                try!(self.kernel.reader.skip(2));
+                Ok(true)
+            }
+            (Type::Float32, _) => {
+                try!(self.kernel.reader.skip(4));
+                Ok(true)
+            }
+            (Type::Float64, _) => {
+                try!(self.kernel.reader.skip(8));
+                Ok(true)
+            }
+            (Type::Bytes, 31) => self.skip_until_break(Type::Bytes).and(Ok(true)),
+            (Type::Bytes, a)  => {
+                let n = try!(self.kernel.unsigned(a));
+                try!(self.kernel.reader.skip(n));
+                Ok(true)
+            }
+            (Type::Text, 31) => self.skip_until_break(Type::Text).and(Ok(true)),
+            (Type::Text, a)  => {
+                let n = try!(self.kernel.unsigned(a));
+                try!(self.kernel.reader.skip(n));
+                Ok(true)
+            }
+            (Type::Array, 31) => {
+                while try!(self.skip_value(level - 1)) {}
+                Ok(true)
+            }
+            (Type::Object, 31) => {
+                while try!(self.skip_value(level - 1)) {}
+                Ok(true)
+            }
+            (Type::Array, a) => {
+                let n = try!(self.kernel.unsigned(a));
+                for _ in 0 .. n {
+                    try!(self.skip_value(level - 1));
+                }
+                Ok(true)
+            }
+            (Type::Object, a) => {
+                let n = 2 * try!(self.kernel.unsigned(a));
+                for _ in 0 .. n {
+                    try!(self.skip_value(level - 1));
+                }
+                Ok(true)
+            }
+            (Type::Unassigned {..}, _) => Ok(true),
+            (Type::Reserved {..}, _)   => Ok(true),
+            ti@(Type::Tagged, _)       => unexpected_type(&ti),
+            ti@(Type::Unknown {..}, _) => unexpected_type(&ti)
+        }
+    }
+
+    // Skip over `Text` or `Bytes` until a `Break` is encountered.
+    fn skip_until_break(&mut self, ty: Type) -> DecodeResult<()> {
+        loop {
+            let (t, a) = try!(self.typeinfo());
+            if t == Type::Break {
+                break
+            }
+            if t != ty || a == 31 {
+                return unexpected_type(&(t, a))
+            }
+            let n = try!(self.kernel.unsigned(a));
+            try!(self.kernel.reader.skip(n))
+        }
+        Ok(())
     }
 }
 
@@ -1073,6 +1174,22 @@ mod tests {
             x.insert(d.text().unwrap(), d.u8().unwrap());
         }
         assert_eq!(map, x);
+    }
+
+    #[test]
+    fn skip() {
+        let mut d = decoder("a66161016162820203616382040561647f657374726561646d696e67ff61659f070405ff61666568656c6c6f");
+        for _ in 0 .. d.object().unwrap() {
+            match d.text().unwrap().as_ref() {
+                "a" => { d.u8().unwrap(); }
+                "b" => for _ in 0 .. d.array().unwrap() { d.u8().unwrap(); },
+                "c" => d.skip().unwrap(),
+                "d" => d.skip().unwrap(),
+                "e" => d.skip().unwrap(),
+                "f" => d.skip().unwrap(),
+                key => panic!("unexpected key: {}", key)
+            }
+        }
     }
 
     #[test]
