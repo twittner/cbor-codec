@@ -1,3 +1,7 @@
+0.2.0
+-----
+- Add `Decoder::skip` method (see issue #3 for details).
+
 0.1.1
 -----
 - Workaround unstable features.
