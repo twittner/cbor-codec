@@ -18,6 +18,7 @@ pub mod types;
 pub mod value;
 pub mod decoder;
 pub mod encoder;
+pub mod skip;
 
 #[cfg(feature="random")]
 pub mod random;

@@ -6,8 +6,8 @@
 use cbor::{Config, GenericDecoder, DecodeError, GenericEncoder};
 use cbor::value::{Key, Text, Value};
 use rustc_serialize::base64::FromBase64;
-use serde::json;
-use serde::json::de::from_reader;
+use serde_json as json;
+use serde_json::de::from_reader;
 use std::{f32, f64};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -83,7 +83,7 @@ fn eq(a: &json::Value, b: &Value) -> bool {
         (&json::Value::U64(x), y) => util::as_u64(y).map(|i| x == i).unwrap_or(false),
         (&json::Value::F64(_), &Value::F32(_)) => true, // See note [floating_point]
         (&json::Value::F64(_), &Value::F64(_)) => true, // See note [floating_point]
-        (&json::Value::Array(ref x), &Value::Array(ref y))   =>
+        (&json::Value::Array(ref x), &Value::Array(ref y)) =>
             x.iter().zip(y.iter()).all(|(xi, yi)| eq(xi, yi)),
         (&json::Value::Object(ref x), &Value::Map(ref y)) =>
             x.iter().zip(y.iter()).all(|((kx, vx), (ky, vy))| {

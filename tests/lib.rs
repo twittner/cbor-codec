@@ -11,6 +11,7 @@ extern crate quickcheck;
 extern crate rand;
 extern crate rustc_serialize;
 extern crate serde;
+extern crate serde_json;
 
 mod properties;
 mod unit;

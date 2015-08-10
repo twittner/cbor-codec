@@ -88,12 +88,13 @@
 
 use byteorder::{self, BigEndian, ReadBytesExt};
 use std::collections::{BTreeMap, LinkedList};
-use std::cmp::{Eq, min};
+use std::cmp::Eq;
 use std::error::Error;
 use std::f32;
 use std::fmt::{self, Debug};
 use std::io;
 use std::string;
+use skip::Skip;
 use types::{Tag, Type};
 use value::{self, Bytes, Key, Simple, Text, Value};
 
@@ -674,6 +675,23 @@ impl<R: ReadBytesExt> Decoder<R> {
         }
     }
 
+    // Decode type information while skipping tags
+    fn typeinfo(&mut self) -> DecodeResult<TypeInfo> {
+        fn go<A: ReadBytesExt>(d: &mut Decoder<A>, level: usize) -> DecodeResult<TypeInfo> {
+            if level == 0 {
+                return Err(DecodeError::TooNested)
+            }
+            match try!(d.kernel.typeinfo()) {
+                (Type::Tagged, i) => d.kernel.unsigned(i).and(go(d, level - 1)),
+                ti                => Ok(ti)
+            }
+        }
+        let start = self.config.max_nesting;
+        go(self, start)
+    }
+}
+
+impl<R: ReadBytesExt + Skip> Decoder<R> {
     /// Skip over a single CBOR value.
     ///
     /// Please note that this function does not validate the value hence
@@ -699,39 +717,50 @@ impl<R: ReadBytesExt> Decoder<R> {
             ti@(Type::Int16, _)  => self.kernel.i16(&ti).and(Ok(true)),
             ti@(Type::Int32, _)  => self.kernel.i32(&ti).and(Ok(true)),
             ti@(Type::Int64, _)  => self.kernel.i64(&ti).and(Ok(true)),
-            (Type::Float16, _)   => self.skip_bytes(2, &mut [0;2]).and(Ok(true)),
-            (Type::Float32, _)   => self.skip_bytes(4, &mut [0;4]).and(Ok(true)),
-            (Type::Float64, _)   => self.skip_bytes(8, &mut [0;8]).and(Ok(true)),
             (Type::Bool, _)      => Ok(true),
             (Type::Null, _)      => Ok(true),
             (Type::Undefined, _) => Ok(true),
             (Type::Break, _)     => Ok(false),
-            (Type::Bytes, 31)    => self.skip_until_break(Type::Bytes).and(Ok(true)),
-            (Type::Bytes, a)     =>
-                self.kernel.unsigned(a)
-                    .and_then(|n| self.skip_bytes(n, &mut [0; 512]))
-                    .and(Ok(true)),
-            (Type::Text, 31)     => self.skip_until_break(Type::Text).and(Ok(true)),
-            (Type::Text, a)      =>
-                self.kernel.unsigned(a)
-                    .and_then(|n| self.skip_bytes(n, &mut [0; 512]))
-                    .and(Ok(true)),
-            (Type::Array, 31)    => {
+            (Type::Float16, _)   => {
+                try!(self.kernel.reader.skip(2));
+                Ok(true)
+            }
+            (Type::Float32, _) => {
+                try!(self.kernel.reader.skip(4));
+                Ok(true)
+            }
+            (Type::Float64, _) => {
+                try!(self.kernel.reader.skip(8));
+                Ok(true)
+            }
+            (Type::Bytes, 31) => self.skip_until_break(Type::Bytes).and(Ok(true)),
+            (Type::Bytes, a)  => {
+                let n = try!(self.kernel.unsigned(a));
+                try!(self.kernel.reader.skip(n));
+                Ok(true)
+            }
+            (Type::Text, 31) => self.skip_until_break(Type::Text).and(Ok(true)),
+            (Type::Text, a)  => {
+                let n = try!(self.kernel.unsigned(a));
+                try!(self.kernel.reader.skip(n));
+                Ok(true)
+            }
+            (Type::Array, 31) => {
                 while try!(self.skip_value(level - 1)) {}
                 Ok(true)
             }
-            (Type::Object, 31)   => {
+            (Type::Object, 31) => {
                 while try!(self.skip_value(level - 1)) {}
                 Ok(true)
             }
-            (Type::Array, a)     => {
+            (Type::Array, a) => {
                 let n = try!(self.kernel.unsigned(a));
                 for _ in 0 .. n {
                     try!(self.skip_value(level - 1));
                 }
                 Ok(true)
             }
-            (Type::Object, a)    => {
+            (Type::Object, a) => {
                 let n = 2 * try!(self.kernel.unsigned(a));
                 for _ in 0 .. n {
                     try!(self.skip_value(level - 1));
@@ -745,35 +774,8 @@ impl<R: ReadBytesExt> Decoder<R> {
         }
     }
 
-    // Reading `n` bytes in chunks of size `b.len()` (subsequent chunks
-    // overwrite previous ones).
-    //
-    // Note [offset]
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // `std::io::Read::read` fills the whole buffer if possible. To not read
-    // more than `n` bytes, we pass a mutable slice to `read` which starts
-    // at an offset into `b` which reduces the size of the last chunk if
-    // necessary,
-    fn skip_bytes(&mut self, n: u64, b: &mut [u8]) -> DecodeResult<()> {
-        let len = b.len() as u64;
-        let mut i = 0;
-        while i < n {
-            let off = len - min(n - i, len); // See Note [offset]
-            match self.kernel.reader.read(&mut b[off as usize ..]) {
-                Ok(0)  => return Err(DecodeError::UnexpectedEOF),
-                Ok(j)  => i += j as u64,
-                Err(e) =>
-                    if e.kind() != io::ErrorKind::Interrupted {
-                        return Err(DecodeError::IoError(e))
-                    }
-            }
-        }
-        Ok(())
-    }
-
     // Skip over `Text` or `Bytes` until a `Break` is encountered.
     fn skip_until_break(&mut self, ty: Type) -> DecodeResult<()> {
-        let mut buf = [0; 512];
         loop {
             let (t, a) = try!(self.typeinfo());
             if t == Type::Break {
@@ -782,24 +784,10 @@ impl<R: ReadBytesExt> Decoder<R> {
             if t != ty || a == 31 {
                 return unexpected_type(&(t, a))
             }
-            try!(self.kernel.unsigned(a).and_then(|n| self.skip_bytes(n, &mut buf)))
+            let n = try!(self.kernel.unsigned(a));
+            try!(self.kernel.reader.skip(n))
         }
         Ok(())
-    }
-
-    // Decode type information while skipping tags
-    fn typeinfo(&mut self) -> DecodeResult<TypeInfo> {
-        fn go<A: ReadBytesExt>(d: &mut Decoder<A>, level: usize) -> DecodeResult<TypeInfo> {
-            if level == 0 {
-                return Err(DecodeError::TooNested)
-            }
-            match try!(d.kernel.typeinfo()) {
-                (Type::Tagged, i) => d.kernel.unsigned(i).and(go(d, level - 1)),
-                ti                => Ok(ti)
-            }
-        }
-        let start = self.config.max_nesting;
-        go(self, start)
     }
 }
 
