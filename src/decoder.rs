@@ -503,6 +503,10 @@ impl<R: ReadBytesExt> Decoder<R> {
         self.kernel.into_reader()
     }
 
+    pub fn kernel<'x>(&'x mut self) -> &'x mut Kernel<R> {
+        &mut self.kernel
+    }
+
     pub fn simple(&mut self) -> DecodeResult<Simple> {
         self.typeinfo().and_then(|ti| self.kernel.simple(&ti))
     }
