@@ -6,8 +6,6 @@
 //! CBOR ([RFC 7049](http://tools.ietf.org/html/rfc7049))
 //! decoder implementation supporting the following features:
 //!
-//! - Generic decoding using an intermediate representation
-//! - Tag validation
 //! - Resource limits (e.g. maximum nesting level)
 //! - Direct decoding into Rust types
 //! - Indefinite sized bytes, strings, arrays and objects
@@ -17,8 +15,6 @@
 //! 1. `Kernel` contains the basic decoding functionality, capable of
 //! decoding simple unstructured types.
 //! 2. `Decoder` directly decodes into native Rust types.
-//! 3. `GenericDecoder` handles arbitrary CBOR items and decodes them
-//! into an `Value` AST.
 //!
 //! # Example 1: Direct decoding
 //!
@@ -55,28 +51,7 @@
 //! }
 //! ```
 //!
-//! # Example 3: Generic decoding
-//!
-//! ```
-//! extern crate cbor;
-//! extern crate rustc_serialize;
-//!
-//! use cbor::{Config, GenericDecoder};
-//! use cbor::value::{self, Key};
-//! use rustc_serialize::hex::FromHex;
-//! use std::io::Cursor;
-//!
-//! fn main() {
-//!     let input = Cursor::new("a2616101028103".from_hex().unwrap());
-//!     let mut d = GenericDecoder::new(Config::default(), input);
-//!     let value = d.value().unwrap();
-//!     let     c = value::Cursor::new(&value);
-//!     assert_eq!(Some(1), c.field("a").u8());
-//!     assert_eq!(Some(3), c.get(Key::U8(2)).at(0).u8())
-//! }
-//! ```
-//!
-//! # Example 4: Direct decoding (optional value)
+//! # Example 3: Direct decoding (optional value)
 //!
 //! ```
 //! use cbor::{opt, Config, Decoder};
@@ -87,16 +62,15 @@
 //! ```
 
 use byteorder::{self, BigEndian, ReadBytesExt};
-use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
 use std::error::Error;
 use std::f32;
-use std::fmt::{self, Debug};
+use std::fmt;
+use std::{i8, i16, i32, i64};
 use std::io;
 use std::string;
 use skip::Skip;
-use types::{Tag, Type};
-use value::{self, Bytes, Key, Simple, Text, Value};
+use types::{Simple, Tag, Type};
 
 // Decoder Configuration ////////////////////////////////////////////////////
 
@@ -118,12 +92,8 @@ pub struct Config {
     pub max_len_text: usize,
     /// Maximum number of object fields
     pub max_size_map: usize,
-    /// Maximum recursion steps when decoder `Value`s
-    pub max_nesting: usize,
-    /// Ignore `Tag`s when decoding `Value`s
-    pub skip_tags: bool,
-    /// Validate `Value` type matches `Tag`.
-    pub check_tags: bool
+    /// Maximum recursion steps when skipping values or tags.
+    pub max_nesting: usize
 }
 
 const DEFAULT_CONFIG: Config = Config
@@ -132,8 +102,6 @@ const DEFAULT_CONFIG: Config = Config
     , max_len_text: 0x500000
     , max_size_map: 1000
     , max_nesting: 16
-    , skip_tags: false
-    , check_tags: true
     };
 
 impl Config {
@@ -144,8 +112,6 @@ impl Config {
     /// - `max_len_text` = 5 MB
     /// - `max_size_map` = 1000
     /// - `max_nesting` = 16
-    /// - `skip_tags` = false
-    /// - `check_tags` = true
     pub fn default() -> Config { DEFAULT_CONFIG }
 }
 
@@ -155,27 +121,20 @@ pub type DecodeResult<A> = Result<A, DecodeError>;
 
 #[derive(Debug)]
 pub enum DecodeError {
-    /// An object contains the same key multiple times
-    DuplicateKey(Box<Debug>),
-    /// The decoded `Value` can not serve as a `Key` in an object
-    InvalidKey(Value),
-    /// The type of `Value` is not what is expected for a `Tag`
-    InvalidTag(Value),
+    /// The signed integer is greater that its max value
+    IntOverflow(u64),
     /// The string is not encoded in UTF-8
     InvalidUtf8(string::FromUtf8Error),
     /// Some I/O error
     IoError(io::Error),
     /// The maximum configured length is exceeded
     TooLong { max: usize, actual: u64 },
-    /// `Value`s are nested deeper than the configured maximum
+    /// Structure is nested deeper than the configured maximum
     TooNested,
     /// The end of file has been encountered unexpectedly
     UnexpectedEOF,
     /// And unexpected type has been encountered
-    UnexpectedType { datatype: Type, info: u8 },
-    /// A break was encountered at some unexpected point while
-    /// decoding an indefinite object.
-    UnexpectedBreak
+    UnexpectedType { datatype: Type, info: u8 }
 }
 
 /// When decoding an optional item, i.e. a `Null` value has to be
@@ -231,14 +190,11 @@ fn is_undefined(e: &DecodeError) -> bool {
 impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            DecodeError::DuplicateKey(ref k) => write!(f, "DecodeError: duplicate key: {:?}", *k),
-            DecodeError::InvalidKey(ref k)   => write!(f, "DecodeError: unsuitable map key: {:?}", *k),
-            DecodeError::InvalidTag(ref v)   => write!(f, "DecodeError: value does not match tag: {:?}", *v),
+            DecodeError::IntOverflow(n)      => write!(f, "DecodeError: integer overflow: {}", n),
             DecodeError::InvalidUtf8(ref e)  => write!(f, "DecodeError: Invalid UTF-8 encoding: {}", *e),
             DecodeError::IoError(ref e)      => write!(f, "DecodeError: I/O error: {}", *e),
             DecodeError::TooNested           => write!(f, "DecodeError: value is too nested"),
             DecodeError::UnexpectedEOF       => write!(f, "DecodeError: unexpected end-of-file"),
-            DecodeError::UnexpectedBreak     => write!(f, "DecodeError: unexpected break"),
             DecodeError::TooLong{max:m, actual:a} => write!(f, "DecodeError: value is too long {} (max={})", a, m),
             DecodeError::UnexpectedType{datatype:t, info:i} => write!(f, "DecodeError: unexpected type {:?} (info={})", t, i)
         }
@@ -280,6 +236,52 @@ impl From<string::FromUtf8Error> for DecodeError {
     }
 }
 
+// Macros ///////////////////////////////////////////////////////////////////
+
+// Like `read_signed` but always using `read_u8`
+macro_rules! read_signed_byte {
+    ($this: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.reader.read_u8()
+            .map_err(From::from)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(-1 - n as $to_type)
+                }
+            })
+    });
+}
+
+// Read from reader, check value range and map to negative integer.
+macro_rules! read_signed {
+    ($this: ident, $from: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.reader.$from::<BigEndian>()
+            .map_err(From::from)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(-1 - n as $to_type)
+                }
+            })
+    });
+}
+
+// Read unsigned integer, check value range and cast to target type.
+macro_rules! cast_unsigned {
+    ($this: ident, $from: ident, $info: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.$from($info)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(n as $to_type)
+                }
+            })
+    });
+}
+
 // Decoder Kernel ///////////////////////////////////////////////////////////
 
 pub type TypeInfo = (Type, u8);
@@ -287,8 +289,8 @@ pub type TypeInfo = (Type, u8);
 /// This decoding kernel reads from an underlying `std::io::Read` type
 /// primitive CBOR values such as unsigned and signed integers as well
 /// as raw bytes.
-/// It forms the basis on which `Decoder` and `GenericDecoder` add logic
-/// for handling `Tag`s, heterogenous data and generic value decoding.
+/// It forms the basis on which `Decoder` adds logic for handling `Tag`s
+/// and heterogenous data structures.
 pub struct Kernel<R> {
     reader: R
 }
@@ -363,38 +365,48 @@ impl<R: ReadBytesExt> Kernel<R> {
     pub fn i8(&mut self, ti: &TypeInfo) -> DecodeResult<i8> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i8),
-            (Type::Int8, 24) => self.reader.read_u8().map(|n| -1 - n as i8).map_err(From::from),
-            _                => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i8, i8),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i8, i8),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i16(&mut self, ti: &TypeInfo) -> DecodeResult<i16> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i16),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i16).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i16).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i16, i16),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i16, i16),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i16, i16),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i16, i16),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i32(&mut self, ti: &TypeInfo) -> DecodeResult<i32> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i32),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i32).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i32).map_err(From::from),
-            (Type::Int32, 26) => self.reader.read_u32::<BigEndian>().map(|n| -1 - n as i32).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i32, i32),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i32, i32),
+            (Type::Int32, 26)        => read_signed!(self, read_u32, u32, i32, i32),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i32, i32),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i32, i32),
+            (Type::UInt32, _)        => cast_unsigned!(self, u32, ti, u32, i32, i32),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i64(&mut self, ti: &TypeInfo) -> DecodeResult<i64> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i64),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int32, 26) => self.reader.read_u32::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int64, 27) => self.reader.read_u64::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i64, i64),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i64, i64),
+            (Type::Int32, 26)        => read_signed!(self, read_u32, u32, i64, i64),
+            (Type::Int64, 27)        => read_signed!(self, read_u64, u64, i64, i64),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i64, i64),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i64, i64),
+            (Type::UInt32, _)        => cast_unsigned!(self, u32, ti, u32, i64, i64),
+            (Type::UInt64, _)        => cast_unsigned!(self, u64, ti, u64, i64, i64),
+            _                        => unexpected_type(ti)
         }
     }
 
@@ -695,8 +707,7 @@ impl<R: ReadBytesExt + Skip> Decoder<R> {
     /// Skip over a single CBOR value.
     ///
     /// Please note that this function does not validate the value hence
-    /// it might not even be well-formed CBOR. Instead `skip` is an
-    /// optimisation over `GenericDecoder::value()` and generally only
+    /// it might not even be well-formed CBOR. Instead `skip` only
     /// determines as much information as necessary to safely skip a value
     /// without keeping all of it in memory.
     pub fn skip(&mut self) -> DecodeResult<()> {
@@ -713,9 +724,9 @@ impl<R: ReadBytesExt + Skip> Decoder<R> {
             ti@(Type::UInt16, _) => self.kernel.u16(&ti).and(Ok(true)),
             ti@(Type::UInt32, _) => self.kernel.u32(&ti).and(Ok(true)),
             ti@(Type::UInt64, _) => self.kernel.u64(&ti).and(Ok(true)),
-            ti@(Type::Int8, _)   => self.kernel.i8(&ti).and(Ok(true)),
-            ti@(Type::Int16, _)  => self.kernel.i16(&ti).and(Ok(true)),
-            ti@(Type::Int32, _)  => self.kernel.i32(&ti).and(Ok(true)),
+            ti@(Type::Int8, _)   => self.kernel.i16(&ti).and(Ok(true)),
+            ti@(Type::Int16, _)  => self.kernel.i32(&ti).and(Ok(true)),
+            ti@(Type::Int32, _)  => self.kernel.i64(&ti).and(Ok(true)),
             ti@(Type::Int64, _)  => self.kernel.i64(&ti).and(Ok(true)),
             (Type::Bool, _)      => Ok(true),
             (Type::Null, _)      => Ok(true),
@@ -827,218 +838,16 @@ impl<'r, R: 'r + ReadBytesExt> Iterator for TextIter<'r, R> {
     }
 }
 
-// Generic Decoder //////////////////////////////////////////////////////////
-
-/// A generic decoder decodes arbitrary CBOR into a `Value` AST.
-pub struct GenericDecoder<R> {
-    decoder: Decoder<R>
-}
-
-impl<R: ReadBytesExt> GenericDecoder<R> {
-    pub fn new(c: Config, r: R) -> GenericDecoder<R> {
-        GenericDecoder { decoder: Decoder::new(c, r) }
-    }
-
-    pub fn from_decoder(d: Decoder<R>) -> GenericDecoder<R> {
-        GenericDecoder { decoder: d }
-    }
-
-    pub fn into_inner(self) -> Decoder<R> {
-        self.decoder
-    }
-
-    pub fn borrow_mut(&mut self) -> &mut Decoder<R> {
-        &mut self.decoder
-    }
-
-    /// Decode into a `Value`, i.e. an intermediate representation which
-    /// can be further deconstructed using a `Cursor`.
-    /// This supports indefinite decoding as well as tag validation
-    /// (if not disabled).
-    pub fn value(&mut self) -> DecodeResult<Value> {
-        let start = self.decoder.config.max_nesting;
-        self.decode_value(start)
-    }
-
-    fn decode_value(&mut self, level: usize) -> DecodeResult<Value> {
-        if level == 0 {
-            return Err(DecodeError::TooNested)
-        }
-        match try!(self.decoder.kernel.typeinfo()) {
-            ti@(Type::UInt8, _)   => self.decoder.kernel.u8(&ti).map(Value::U8),
-            ti@(Type::UInt16, _)  => self.decoder.kernel.u16(&ti).map(Value::U16),
-            ti@(Type::UInt32, _)  => self.decoder.kernel.u32(&ti).map(Value::U32),
-            ti@(Type::UInt64, _)  => self.decoder.kernel.u64(&ti).map(Value::U64),
-            ti@(Type::Int8, _)    => self.decoder.kernel.i8(&ti).map(Value::I8),
-            ti@(Type::Int16, _)   => self.decoder.kernel.i16(&ti).map(Value::I16),
-            ti@(Type::Int32, _)   => self.decoder.kernel.i32(&ti).map(Value::I32),
-            ti@(Type::Int64, _)   => self.decoder.kernel.i64(&ti).map(Value::I64),
-            ti@(Type::Float16, _) => self.decoder.kernel.f16(&ti).map(Value::F32),
-            ti@(Type::Float32, _) => self.decoder.kernel.f32(&ti).map(Value::F32),
-            ti@(Type::Float64, _) => self.decoder.kernel.f64(&ti).map(Value::F64),
-            ti@(Type::Bool, _)    => self.decoder.kernel.bool(&ti).map(Value::Bool),
-            (Type::Null, _)       => Ok(Value::Null),
-            (Type::Undefined, _)  => Ok(Value::Undefined),
-            (Type::Break, _)      => Ok(Value::Break),
-            (Type::Bytes, 31)     => { // indefinite byte string
-                let mut i = 0u64;
-                let mut v = LinkedList::new();
-                loop {
-                    match self.decoder.bytes() {
-                        Ok(chunk) => {
-                            i += chunk.len() as u64;
-                            if i > self.decoder.config.max_len_bytes as u64 {
-                                return Err(DecodeError::TooLong { max: self.decoder.config.max_len_bytes, actual: i })
-                            }
-                            v.push_back(chunk)
-                        }
-                        Err(ref e) if is_break(e) => break,
-                        Err(e)                    => return Err(e)
-                    }
-                }
-                Ok(Value::Bytes(Bytes::Chunks(v)))
-            }
-            (Type::Bytes, a) => {
-                let max = self.decoder.config.max_len_bytes;
-                self.decoder.kernel.raw_data(a, max).map(|x| Value::Bytes(Bytes::Bytes(x)))
-            }
-            (Type::Text, 31) => { // indefinite string
-                let mut i = 0u64;
-                let mut v = LinkedList::new();
-                loop {
-                    match self.decoder.text() {
-                        Ok(chunk) => {
-                            i += chunk.len() as u64;
-                            if i > self.decoder.config.max_len_text as u64 {
-                                return Err(DecodeError::TooLong { max: self.decoder.config.max_len_text, actual: i })
-                            }
-                            v.push_back(chunk)
-                        }
-                        Err(ref e) if is_break(e) => break,
-                        Err(e)                    => return Err(e)
-                    }
-                }
-                Ok(Value::Text(Text::Chunks(v)))
-            }
-            (Type::Text, a) => {
-                let max  = self.decoder.config.max_len_text;
-                let data = try!(self.decoder.kernel.raw_data(a, max));
-                String::from_utf8(data).map(|x| Value::Text(Text::Text(x))).map_err(From::from)
-            }
-            (Type::Array, 31) => { // indefinite length array
-                let mut i = 0u64;
-                let mut v = Vec::new();
-                loop {
-                    i += 1;
-                    if i > self.decoder.config.max_len_array as u64 {
-                        return Err(DecodeError::TooLong { max: self.decoder.config.max_len_array, actual: i })
-                    }
-                    match self.decode_value(level - 1) {
-                        Ok(Value::Break) => break,
-                        Ok(x)            => v.push(x),
-                        e                => return e
-                    }
-                }
-                Ok(Value::Array(v))
-            }
-            (Type::Array, a) => {
-                let len = try!(self.decoder.kernel.unsigned(a));
-                if len > self.decoder.config.max_len_array as u64 {
-                    return Err(DecodeError::TooLong { max: self.decoder.config.max_len_array, actual: len })
-                }
-                let n = len as usize;
-                let mut v = Vec::with_capacity(n);
-                for _ in 0 .. n {
-                    v.push(try!(self.decode_value(level - 1)));
-                }
-                Ok(Value::Array(v))
-            }
-            (Type::Object, 31) => { // indefinite size object
-                let mut i = 0u64;
-                let mut m = BTreeMap::new();
-                loop {
-                    i += 1;
-                    if i > self.decoder.config.max_size_map as u64 {
-                        return Err(DecodeError::TooLong { max: self.decoder.config.max_size_map, actual: i })
-                    }
-                    match self.decode_key(level - 1) {
-                        Ok(key) => {
-                            if m.contains_key(&key) {
-                                return Err(DecodeError::DuplicateKey(Box::new(key)))
-                            }
-                            match try!(self.decode_value(level - 1)) {
-                                Value::Break => return Err(DecodeError::UnexpectedBreak),
-                                value        => { m.insert(key, value); }
-                            }
-                        }
-                        Err(DecodeError::InvalidKey(Value::Break)) => break,
-                        Err(e) => return Err(e)
-                    }
-                }
-                Ok(Value::Map(m))
-            }
-            (Type::Object, a) => {
-                let len = try!(self.decoder.kernel.unsigned(a));
-                if len > self.decoder.config.max_size_map as u64 {
-                    return Err(DecodeError::TooLong { max: self.decoder.config.max_size_map, actual: len })
-                }
-                let n = len as usize;
-                let mut m = BTreeMap::new();
-                for _ in 0 .. n {
-                    let key = try!(self.decode_key(level - 1));
-                    if m.contains_key(&key) {
-                        return Err(DecodeError::DuplicateKey(Box::new(key)))
-                    }
-                    m.insert(key, try!(self.decode_value(level - 1)));
-                }
-                Ok(Value::Map(m))
-            }
-            (Type::Tagged, a) => {
-                let tag = try!(self.decoder.kernel.unsigned(a).map(Tag::of));
-                if self.decoder.config.skip_tags {
-                    return self.decode_value(level - 1)
-                }
-                let val = try!(self.decode_value(level - 1).map(|v| Value::Tagged(tag, Box::new(v))));
-                if self.decoder.config.check_tags && !value::check(&val) {
-                    return Err(DecodeError::InvalidTag(val))
-                }
-                Ok(val)
-            }
-            (Type::Unassigned { major: 7, info: a }, _) => Ok(Value::Simple(Simple::Unassigned(a))),
-            (Type::Reserved { major: 7, info: a }, _)   => Ok(Value::Simple(Simple::Reserved(a))),
-            ti => unexpected_type(&ti)
-        }
-    }
-
-    fn decode_key(&mut self, level: usize) -> DecodeResult<Key> {
-        match try!(self.decode_value(level)) {
-            Value::Bool(x)   => Ok(Key::Bool(x)),
-            Value::Bytes(x)  => Ok(Key::Bytes(x)),
-            Value::I8(x)     => Ok(Key::I8(x)),
-            Value::I16(x)    => Ok(Key::I16(x)),
-            Value::I32(x)    => Ok(Key::I32(x)),
-            Value::I64(x)    => Ok(Key::I64(x)),
-            Value::Text(x)   => Ok(Key::Text(x)),
-            Value::U8(x)     => Ok(Key::U8(x)),
-            Value::U16(x)    => Ok(Key::U16(x)),
-            Value::U32(x)    => Ok(Key::U32(x)),
-            Value::U64(x)    => Ok(Key::U64(x)),
-            other            => Err(DecodeError::InvalidKey(other))
-        }
-    }
-}
-
 // Tests ////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
     use rustc_serialize::hex::FromHex;
     use std::{f32, f64};
-    use std::collections::{BTreeMap, LinkedList};
+    use std::collections::BTreeMap;
     use std::io::Cursor;
     use super::*;
-    use types::{Tag, Type};
-    use value::{self, Key, Simple, Value};
+    use types::{Simple, Tag};
 
     #[test]
     fn unsigned() {
@@ -1064,6 +873,19 @@ mod tests {
         assert_eq!(Some(-1000), decoder("3903e7").i16().ok());
         assert_eq!(Some(-343434), decoder("3a00053d89").i32().ok());
         assert_eq!(Some(-23764523654), decoder("3b000000058879da85").i64().ok())
+    }
+
+    #[test]
+    fn mixed() {
+        assert_eq!(Some(0), decoder("00").i8().ok());
+        assert_eq!(Some(1), decoder("01").i8().ok());
+        assert_eq!(Some(10), decoder("0a").i8().ok());
+        assert_eq!(Some(23), decoder("17").i8().ok());
+        assert_eq!(Some(24), decoder("1818").i8().ok());
+        assert_eq!(Some(25), decoder("1819").i8().ok());
+        assert_eq!(Some(100), decoder("1864").i8().ok());
+        assert_eq!(Some(1000), decoder("1903e8").i16().ok());
+        assert_eq!(Some(1000000), decoder("1a000f4240").i32().ok());
     }
 
     #[test]
@@ -1117,13 +939,12 @@ mod tests {
         let expected2 = String::from("\u{00fc}");
         assert_eq!(Some(expected2), decoder("62c3bc").text().ok());
 
-        let mut streaming = LinkedList::new();
-        streaming.push_back(String::from("strea"));
-        streaming.push_back(String::from("ming"));
-        assert_eq!(
-            Some(&streaming),
-            value::Cursor::new(&gen_decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
-        );
+        let mut r = Vec::new();
+        let mut d = decoder("7f657374726561646d696e67ff");
+        for t in d.text_iter().unwrap() {
+            r.push(t.unwrap())
+        }
+        assert_eq!(vec![String::from("strea"), String::from("ming")], r);
     }
 
     #[test]
@@ -1144,13 +965,9 @@ mod tests {
 
     #[test]
     fn empty_arrays() {
-        assert_eq!(Some(Value::Array(vec![])), gen_decoder("9fff").value().ok());
-
-        // Indefinite arrays not supported in direct decoding.
-        match decoder("9fff").array() {
-            Err(DecodeError::UnexpectedType { datatype: Type::Array, info: 31}) => (),
-            other => panic!("unexcted result: {:?}", other)
-        }
+        let mut d = decoder("9fff");
+        d.array_begin().unwrap();
+        or_break(d.u8()).unwrap();
     }
 
     #[test]
@@ -1209,14 +1026,6 @@ mod tests {
     }
 
     #[test]
-    fn object_value() {
-        let v = gen_decoder("a2616101028103").value().ok().unwrap();
-        let d = value::Cursor::new(&v);
-        assert_eq!(Some(1), d.field("a").u8());
-        assert_eq!(Some(3), d.get(Key::U8(2)).at(0).u8())
-    }
-
-    #[test]
     fn tagged() {
         // by default, tags are ignored
         assert_eq!(Some(1363896240), decoder("c11a514b67b0").u32().ok());
@@ -1226,23 +1035,7 @@ mod tests {
         assert_eq!(Some(1363896240), d.u32().ok())
     }
 
-    #[test]
-    fn tagged_value() {
-        match gen_decoder("c11a514b67b0").value().ok() {
-            Some(Value::Tagged(Tag::Timestamp, ref v)) if **v == Value::U32(1363896240) => (),
-            other => panic!("impossible tagged value: {:?}", other)
-        }
-        match gen_decoder("c1fb41d452d9ec200000").value().ok() {
-            Some(Value::Tagged(Tag::Timestamp, ref v)) if **v == Value::F64(1363896240.5) => (),
-            other => panic!("impossible tagged value: {:?}", other)
-        }
-    }
-
     fn decoder(s: &str) -> Decoder<Cursor<Vec<u8>>> {
         Decoder::new(Config::default(), Cursor::new(s.from_hex().unwrap()))
-    }
-
-    fn gen_decoder(s: &str) -> GenericDecoder<Cursor<Vec<u8>>> {
-        GenericDecoder::from_decoder(decoder(s))
     }
 }

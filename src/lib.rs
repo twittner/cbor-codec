@@ -11,18 +11,11 @@ extern crate libc;
 #[cfg(test)]
 extern crate rustc_serialize;
 
-#[cfg(feature="random")]
-extern crate quickcheck;
-
 pub mod types;
-pub mod value;
 pub mod decoder;
 pub mod encoder;
 pub mod skip;
 
-#[cfg(feature="random")]
-pub mod random;
-
-pub use decoder::{Config, Decoder, DecodeError, DecodeResult, GenericDecoder};
+pub use decoder::{Config, Decoder, DecodeError, DecodeResult};
 pub use decoder::{opt, maybe, or_break};
-pub use encoder::{Encoder, EncodeError, EncodeResult, GenericEncoder};
+pub use encoder::{Encoder, EncodeError, EncodeResult};

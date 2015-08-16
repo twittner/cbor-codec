@@ -7,6 +7,15 @@
 
 use byteorder::{Error, ReadBytesExt};
 
+/// Most simple types (e.g. `bool` are covered elsewhere) but this
+/// value captures those value ranges of CBOR type `Simple` (major 7)
+/// which are either not assigned or reserved.
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+pub enum Simple {
+    Unassigned(u8),
+    Reserved(u8)
+}
+
 /// The CBOR types.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub enum Type {

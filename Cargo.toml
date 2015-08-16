@@ -11,25 +11,14 @@ keywords      = ["cbor", "encoding", "binary"]
 [lib]
 name = "cbor"
 
-[features]
-random = ["quickcheck"]
-
 [dependencies]
 byteorder = "> 0.3.0"
 libc      = "> 0.1.0"
 
-[dependencies.quickcheck]
-version  = ">= 0.2.21"
-optional = true
-
 [dev-dependencies]
 quickcheck        = ">= 0.2.21"
 quickcheck_macros = ">= 0.2.21"
-rand              = ">  0.3.0"
 rustc-serialize   = ">  0.3.0"
-serde             = ">= 0.5.0"
-serde_json        = ">= 0.5.0"
-serde_macros      = ">= 0.5.0"
 
 [[test]]
 name = "tests"
