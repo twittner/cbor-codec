@@ -89,6 +89,7 @@
 use byteorder::{self, BigEndian, ReadBytesExt};
 use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
+use std::str::{from_utf8, Utf8Error};
 use std::error::Error;
 use std::f32;
 use std::fmt::{self, Debug};
@@ -98,6 +99,7 @@ use std::string;
 use skip::Skip;
 use types::{Tag, Type};
 use value::{self, Bytes, Key, Simple, Text, Value};
+use read_slice::ReadSlice;
 
 // Decoder Configuration ////////////////////////////////////////////////////
 
@@ -165,7 +167,7 @@ pub enum DecodeError {
     /// The type of `Value` is not what is expected for a `Tag`
     InvalidTag(Value),
     /// The string is not encoded in UTF-8
-    InvalidUtf8(string::FromUtf8Error),
+    InvalidUtf8(Utf8Error),
     /// Some I/O error
     IoError(io::Error),
     /// The maximum configured length is exceeded
@@ -280,6 +282,11 @@ impl From<io::Error> for DecodeError {
 
 impl From<string::FromUtf8Error> for DecodeError {
     fn from(e: string::FromUtf8Error) -> DecodeError {
+        DecodeError::InvalidUtf8(e.utf8_error())
+    }
+}
+impl From<Utf8Error> for DecodeError {
+    fn from(e: Utf8Error) -> DecodeError {
         DecodeError::InvalidUtf8(e)
     }
 }
@@ -525,6 +532,29 @@ impl<R: ReadBytesExt> Kernel<R> {
             }
         }
         Ok(v)
+    }
+
+}
+
+impl<R: ReadBytesExt+ReadSlice> Kernel<R> {
+    /// Read `begin` as the length and return that many raw bytes as slice.
+    /// If length is greater than the given `max_len`, `DecodeError::TooLong`
+    /// is returned instead.
+    pub fn raw_data_slice<'x>(&'x mut self, begin: u8, max_len: usize)
+        -> DecodeResult<&'x [u8]>
+    {
+        let len = try!(self.unsigned(begin));
+        if len > max_len as u64 {
+            return Err(DecodeError::TooLong { max: max_len, actual: len })
+        }
+        // TODO(tailhook) should it deal with eintr? Or should read_slice itself?
+        match self.reader.read_slice(len) {
+            Ok(value)  => {
+                debug_assert!(value.len() as u64 == len);
+                return Ok(value)
+            }
+            Err(e) => return Err(DecodeError::IoError(e)),
+        }
     }
 }
 
@@ -852,6 +882,40 @@ impl<R: ReadBytesExt + Skip> Decoder<R> {
             try!(self.kernel.reader.skip(n))
         }
         Ok(())
+    }
+}
+
+impl<R: ReadBytesExt + ReadSlice> Decoder<R> {
+    /// Decode a single UTF-8 encoded String and borrow it from underlying
+    /// buffer instead of allocating a string
+    ///
+    /// Please note that indefinite strings are not supported by this method
+    /// (Consider using `Decoder::text_iter()` for this use-case).
+    pub fn text_borrow<'x>(&'x mut self) -> DecodeResult<&'x str> {
+        match try!(self.typeinfo()) {
+            (Type::Text, 31) => unexpected_type(&(Type::Text, 31)),
+            (Type::Text,  i) => {
+                let max  = self.config.max_len_text;
+                let data = try!(self.kernel.raw_data_slice(i, max));
+                from_utf8(data).map_err(From::from)
+            }
+            ti => unexpected_type(&ti)
+        }
+    }
+
+    /// Decode a single byte string.
+    ///
+    /// Please note that indefinite byte strings are not supported by this
+    /// method (Consider using `Decoder::bytes_iter()` for this use-case).
+    pub fn bytes_borrow<'x>(&'x mut self) -> DecodeResult<&'x [u8]> {
+        match try!(self.typeinfo()) {
+            (Type::Bytes, 31) => unexpected_type(&(Type::Bytes, 31)),
+            (Type::Bytes,  i) => {
+                let max = self.config.max_len_bytes;
+                self.kernel.raw_data_slice(i, max)
+            }
+            ti => unexpected_type(&ti)
+        }
     }
 }
 
@@ -1229,6 +1293,18 @@ mod tests {
             r.push(t.unwrap())
         }
         assert_eq!(vec![String::from("strea"), String::from("ming")], r);
+    }
+
+    #[test]
+    fn text_borrow() {
+        let expected1 = "dfsdfsdf\r\nsdf\r\nhello\r\nsdfsfsdfs";
+        assert_eq!(Some(expected1), decoder("781f64667364667364660d0a7364660d0a68656c6c6f0d0a736466736673646673").text_borrow().ok());
+    }
+
+    #[test]
+    fn bytes_borrow() {
+        let expected1 = &b"dfsdfsdf\r\nsdf\r\nhello\r\nsdfsfsdfs"[..];
+        assert_eq!(Some(expected1), decoder("581f64667364667364660d0a7364660d0a68656c6c6f0d0a736466736673646673").bytes_borrow().ok());
     }
 
     #[test]
