@@ -15,6 +15,7 @@ pub mod types;
 pub mod decoder;
 pub mod encoder;
 pub mod skip;
+pub mod read_slice;
 
 pub use decoder::{Config, Decoder, DecodeError, DecodeResult};
 pub use decoder::{opt, maybe, or_break};
