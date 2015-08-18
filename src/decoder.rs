@@ -769,14 +769,14 @@ impl<R: ReadBytesExt + Skip> Decoder<R> {
             return Err(DecodeError::TooNested)
         }
         match try!(self.typeinfo()) {
-            ti@(Type::UInt8, _)  => self.kernel.u8(&ti).and(Ok(true)),
-            ti@(Type::UInt16, _) => self.kernel.u16(&ti).and(Ok(true)),
-            ti@(Type::UInt32, _) => self.kernel.u32(&ti).and(Ok(true)),
-            ti@(Type::UInt64, _) => self.kernel.u64(&ti).and(Ok(true)),
-            ti@(Type::Int8, _)   => self.kernel.i16(&ti).and(Ok(true)),
-            ti@(Type::Int16, _)  => self.kernel.i32(&ti).and(Ok(true)),
-            ti@(Type::Int32, _)  => self.kernel.i64(&ti).and(Ok(true)),
-            ti@(Type::Int64, _)  => self.kernel.i64(&ti).and(Ok(true)),
+            (Type::UInt8, n)     => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::UInt16, n)    => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::UInt32, n)    => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::UInt64, n)    => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::Int8, n)      => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::Int16, n)     => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::Int32, n)     => self.kernel.unsigned(n).and(Ok(true)),
+            (Type::Int64, n)     => self.kernel.unsigned(n).and(Ok(true)),
             (Type::Bool, _)      => Ok(true),
             (Type::Null, _)      => Ok(true),
             (Type::Undefined, _) => Ok(true),
@@ -1123,10 +1123,10 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
 mod tests {
     use rustc_serialize::hex::FromHex;
     use std::{f32, f64};
-    use std::collections::{BTreeMap, LinkedList};
+    use std::collections::BTreeMap;
     use std::io::Cursor;
     use super::*;
-    use types::{Tag, Type};
+    use types::Tag;
     use value::{self, Key, Simple, Value};
 
     #[test]
@@ -1153,6 +1153,19 @@ mod tests {
         assert_eq!(Some(-1000), decoder("3903e7").i16().ok());
         assert_eq!(Some(-343434), decoder("3a00053d89").i32().ok());
         assert_eq!(Some(-23764523654), decoder("3b000000058879da85").i64().ok())
+    }
+
+    #[test]
+    fn mixed() {
+        assert_eq!(Some(0), decoder("00").i8().ok());
+        assert_eq!(Some(1), decoder("01").i8().ok());
+        assert_eq!(Some(10), decoder("0a").i8().ok());
+        assert_eq!(Some(23), decoder("17").i8().ok());
+        assert_eq!(Some(24), decoder("1818").i8().ok());
+        assert_eq!(Some(25), decoder("1819").i8().ok());
+        assert_eq!(Some(100), decoder("1864").i8().ok());
+        assert_eq!(Some(1000), decoder("1903e8").i16().ok());
+        assert_eq!(Some(1000000), decoder("1a000f4240").i32().ok());
     }
 
     #[test]
@@ -1206,13 +1219,12 @@ mod tests {
         let expected2 = String::from("\u{00fc}");
         assert_eq!(Some(expected2), decoder("62c3bc").text().ok());
 
-        let mut streaming = LinkedList::new();
-        streaming.push_back(String::from("strea"));
-        streaming.push_back(String::from("ming"));
-        assert_eq!(
-            Some(&streaming),
-            value::Cursor::new(&gen_decoder("7f657374726561646d696e67ff").value().unwrap()).text_chunked()
-        );
+        let mut r = Vec::new();
+        let mut d = decoder("7f657374726561646d696e67ff");
+        for t in d.text_iter().unwrap() {
+            r.push(t.unwrap())
+        }
+        assert_eq!(vec![String::from("strea"), String::from("ming")], r);
     }
 
     #[test]
@@ -1235,11 +1247,9 @@ mod tests {
     fn empty_arrays() {
         assert_eq!(Some(Value::Array(vec![])), gen_decoder("9fff").value().ok());
 
-        // Indefinite arrays not supported in direct decoding.
-        match decoder("9fff").array() {
-            Err(DecodeError::UnexpectedType { datatype: Type::Array, info: 31}) => (),
-            other => panic!("unexcted result: {:?}", other)
-        }
+        let mut d = decoder("9fff");
+        d.array_begin().unwrap();
+        or_break(d.u8()).unwrap();
     }
 
     #[test]

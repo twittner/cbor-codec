@@ -4,23 +4,30 @@
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
 use util::identity;
+use std::{i8, i16, i32, i64};
 
 #[cfg(feature="random")]
 mod value;
 
 #[quickcheck]
 fn identity_u8(x: u8) -> bool {
-    identity(|mut e| e.u8(x), |mut d| d.u8().unwrap() == x)
+    identity(|mut e| e.u8(x), |mut d| d.u8().unwrap() == x);
+    identity(|mut e| e.u16(x as u16), |mut d| d.u8().unwrap() == x);
+    identity(|mut e| e.u32(x as u32), |mut d| d.u8().unwrap() == x);
+    identity(|mut e| e.u64(x as u64), |mut d| d.u8().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_u16(x: u16) -> bool {
-    identity(|mut e| e.u16(x), |mut d| d.u16().unwrap() == x)
+    identity(|mut e| e.u16(x), |mut d| d.u16().unwrap() == x);
+    identity(|mut e| e.u32(x as u32), |mut d| d.u16().unwrap() == x);
+    identity(|mut e| e.u64(x as u64), |mut d| d.u16().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_u32(x: u32) -> bool {
-    identity(|mut e| e.u32(x), |mut d| d.u32().unwrap() == x)
+    identity(|mut e| e.u32(x), |mut d| d.u32().unwrap() == x);
+    identity(|mut e| e.u64(x as u64), |mut d| d.u32().unwrap() == x)
 }
 
 #[quickcheck]
@@ -30,22 +37,52 @@ fn identity_u64(x: u64) -> bool {
 
 #[quickcheck]
 fn identity_i8(x: i8) -> bool {
-    identity(|mut e| e.i8(x), |mut d| d.i8().unwrap() == x)
+    identity(|mut e| e.i8(x), |mut d| d.i8().unwrap() == x);
+    identity(|mut e| e.i16(x as i16), |mut d| d.i8().unwrap() == x);
+    identity(|mut e| e.i32(x as i32), |mut d| d.i8().unwrap() == x);
+    identity(|mut e| e.i64(x as i64), |mut d| d.i8().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i16(x: i16) -> bool {
-    identity(|mut e| e.i16(x), |mut d| d.i16().unwrap() == x)
+    identity(|mut e| e.i16(x), |mut d| d.i16().unwrap() == x);
+    identity(|mut e| e.i32(x as i32), |mut d| d.i16().unwrap() == x);
+    identity(|mut e| e.i64(x as i64), |mut d| d.i16().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i32(x: i32) -> bool {
-    identity(|mut e| e.i32(x), |mut d| d.i32().unwrap() == x)
+    identity(|mut e| e.i32(x), |mut d| d.i32().unwrap() == x);
+    identity(|mut e| e.i64(x as i64), |mut d| d.i32().unwrap() == x)
 }
 
 #[quickcheck]
 fn identity_i64(x: i64) -> bool {
     identity(|mut e| e.i64(x), |mut d| d.i64().unwrap() == x)
+}
+
+#[quickcheck]
+fn identity_u8_i8(x: u8) -> bool {
+    let y = x % i8::MAX as u8;
+    identity(|mut e| e.u8(y), |mut d| d.i8().unwrap() as u8 == y)
+}
+
+#[quickcheck]
+fn identity_u16_i16(x: u16) -> bool {
+    let y = x % i16::MAX as u16;
+    identity(|mut e| e.u16(y), |mut d| d.i16().unwrap() as u16 == y)
+}
+
+#[quickcheck]
+fn identity_u32_i32(x: u32) -> bool {
+    let y = x % i32::MAX as u32;
+    identity(|mut e| e.u32(y), |mut d| d.i32().unwrap() as u32 == y)
+}
+
+#[quickcheck]
+fn identity_u64_i64(x: u64) -> bool {
+    let y = x % i64::MAX as u64;
+    identity(|mut e| e.u64(y), |mut d| d.i64().unwrap() as u64 == y)
 }
 
 #[quickcheck]
