@@ -3,15 +3,13 @@
 // the MPL was not distributed with this file, You
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
-use cbor::{Config, GenericDecoder, DecodeError, GenericEncoder};
+use cbor::{Config, GenericDecoder};
 use cbor::value::{Key, Text, Value};
 use rustc_serialize::base64::FromBase64;
 use serde_json as json;
 use serde_json::de::from_reader;
 use std::{f32, f64};
-use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::Cursor;
 use util;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -21,21 +19,6 @@ struct TestVector {
     roundtrip: bool,
     decoded: Option<json::Value>,
     diagnostic: Option<json::Value>
-}
-
-#[test]
-fn duplicate_key() {
-    let mut map = BTreeMap::new();
-    map.insert(Key::U8(42), Value::Bool(true));
-    map.insert(Key::U32(42), Value::Bool(false));
-    let mut e = GenericEncoder::new(Cursor::new(Vec::new()));
-    e.value(&Value::Map(map)).unwrap();
-    let mut buffer = e.into_inner().into_writer();
-    buffer.set_position(0);
-    match GenericDecoder::new(Config::default(), buffer).value() {
-        Err(DecodeError::DuplicateKey(_)) => (),
-        other                             => panic!("Unexpected: {:?}", other)
-    }
 }
 
 #[test]
@@ -115,14 +98,7 @@ fn to_value(k: Key) -> Value {
     match k {
         Key::Bool(x)  => Value::Bool(x),
         Key::Bytes(x) => Value::Bytes(x),
-        Key::I8(x)    => Value::I8(x),
-        Key::I16(x)   => Value::I16(x),
-        Key::I32(x)   => Value::I32(x),
-        Key::I64(x)   => Value::I64(x),
+        Key::Num(x)   => Value::I64(x),
         Key::Text(x)  => Value::Text(x),
-        Key::U8(x)    => Value::U8(x),
-        Key::U16(x)   => Value::U16(x),
-        Key::U32(x)   => Value::U32(x),
-        Key::U64(x)   => Value::U64(x)
     }
 }

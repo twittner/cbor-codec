@@ -68,11 +68,10 @@ fn gen_map<G: Gen>(level: u16, g: &mut G) -> BTreeMap<Key, Value> {
 }
 
 fn gen_key<G: Gen>(g: &mut G) -> Key {
-    match g.gen_range(0, 5) {
-        0 => Key::U64(g.gen()),
-        1 => Key::I64(g.gen()),
-        2 => Key::Text(gen_text(g)),
-        3 => Key::Bytes(gen_bytes(g)),
+    match g.gen_range(0, 4) {
+        0 => Key::Num(g.gen()),
+        1 => Key::Text(gen_text(g)),
+        2 => Key::Bytes(gen_bytes(g)),
         _ => Key::Bool(g.gen()),
     }
 }

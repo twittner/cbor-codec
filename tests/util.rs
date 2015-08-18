@@ -26,6 +26,10 @@ pub fn as_u64(x: &Value) -> Option<u64> {
         &Value::U16(n) => Some(n as u64),
         &Value::U32(n) => Some(n as u64),
         &Value::U64(n) => Some(n),
+        &Value::I8(n)  if n >= 0 => Some(n as u64),
+        &Value::I16(n) if n >= 0 => Some(n as u64),
+        &Value::I32(n) if n >= 0 => Some(n as u64),
+        &Value::I64(n) if n >= 0 => Some(n as u64),
         _              => None
     }
 }
