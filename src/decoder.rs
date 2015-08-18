@@ -72,7 +72,7 @@
 //!     let value = d.value().unwrap();
 //!     let     c = value::Cursor::new(&value);
 //!     assert_eq!(Some(1), c.field("a").u8());
-//!     assert_eq!(Some(3), c.get(Key::U8(2)).at(0).u8())
+//!     assert_eq!(Some(3), c.get(Key::Num(2)).at(0).u8())
 //! }
 //! ```
 //!
@@ -92,6 +92,7 @@ use std::cmp::Eq;
 use std::error::Error;
 use std::f32;
 use std::fmt::{self, Debug};
+use std::{i8, i16, i32, i64};
 use std::io;
 use std::string;
 use skip::Skip;
@@ -157,6 +158,8 @@ pub type DecodeResult<A> = Result<A, DecodeError>;
 pub enum DecodeError {
     /// An object contains the same key multiple times
     DuplicateKey(Box<Debug>),
+    /// The signed integer is greater that its max value
+    IntOverflow(u64),
     /// The decoded `Value` can not serve as a `Key` in an object
     InvalidKey(Value),
     /// The type of `Value` is not what is expected for a `Tag`
@@ -232,6 +235,7 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             DecodeError::DuplicateKey(ref k) => write!(f, "DecodeError: duplicate key: {:?}", *k),
+            DecodeError::IntOverflow(n)      => write!(f, "DecodeError: integer overflow: {}", n),
             DecodeError::InvalidKey(ref k)   => write!(f, "DecodeError: unsuitable map key: {:?}", *k),
             DecodeError::InvalidTag(ref v)   => write!(f, "DecodeError: value does not match tag: {:?}", *v),
             DecodeError::InvalidUtf8(ref e)  => write!(f, "DecodeError: Invalid UTF-8 encoding: {}", *e),
@@ -278,6 +282,52 @@ impl From<string::FromUtf8Error> for DecodeError {
     fn from(e: string::FromUtf8Error) -> DecodeError {
         DecodeError::InvalidUtf8(e)
     }
+}
+
+// Macros ///////////////////////////////////////////////////////////////////
+
+// Like `read_signed` but always using `read_u8`
+macro_rules! read_signed_byte {
+    ($this: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.reader.read_u8()
+            .map_err(From::from)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(-1 - n as $to_type)
+                }
+            })
+    });
+}
+
+// Read from reader, check value range and map to negative integer.
+macro_rules! read_signed {
+    ($this: ident, $from: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.reader.$from::<BigEndian>()
+            .map_err(From::from)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(-1 - n as $to_type)
+                }
+            })
+    });
+}
+
+// Read unsigned integer, check value range and cast to target type.
+macro_rules! cast_unsigned {
+    ($this: ident, $from: ident, $info: ident, $from_type: ty, $to: ident, $to_type: ty) => ({
+        $this.$from($info)
+            .and_then(|n| {
+                if n > $to::MAX as $from_type {
+                    Err(DecodeError::IntOverflow(n as u64))
+                } else {
+                    Ok(n as $to_type)
+                }
+            })
+    });
 }
 
 // Decoder Kernel ///////////////////////////////////////////////////////////
@@ -363,38 +413,48 @@ impl<R: ReadBytesExt> Kernel<R> {
     pub fn i8(&mut self, ti: &TypeInfo) -> DecodeResult<i8> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i8),
-            (Type::Int8, 24) => self.reader.read_u8().map(|n| -1 - n as i8).map_err(From::from),
-            _                => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i8, i8),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i8, i8),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i16(&mut self, ti: &TypeInfo) -> DecodeResult<i16> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i16),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i16).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i16).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i16, i16),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i16, i16),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i16, i16),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i16, i16),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i32(&mut self, ti: &TypeInfo) -> DecodeResult<i32> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i32),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i32).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i32).map_err(From::from),
-            (Type::Int32, 26) => self.reader.read_u32::<BigEndian>().map(|n| -1 - n as i32).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i32, i32),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i32, i32),
+            (Type::Int32, 26)        => read_signed!(self, read_u32, u32, i32, i32),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i32, i32),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i32, i32),
+            (Type::UInt32, _)        => cast_unsigned!(self, u32, ti, u32, i32, i32),
+            _                        => unexpected_type(ti)
         }
     }
 
     pub fn i64(&mut self, ti: &TypeInfo) -> DecodeResult<i64> {
         match *ti {
             (Type::Int8, n @ 0...23) => Ok(-1 - n as i64),
-            (Type::Int8, 24)  => self.reader.read_u8().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int16, 25) => self.reader.read_u16::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int32, 26) => self.reader.read_u32::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            (Type::Int64, 27) => self.reader.read_u64::<BigEndian>().map(|n| -1 - n as i64).map_err(From::from),
-            _                 => unexpected_type(ti)
+            (Type::Int8, 24)         => read_signed_byte!(self, u8, i64, i64),
+            (Type::Int16, 25)        => read_signed!(self, read_u16, u16, i64, i64),
+            (Type::Int32, 26)        => read_signed!(self, read_u32, u32, i64, i64),
+            (Type::Int64, 27)        => read_signed!(self, read_u64, u64, i64, i64),
+            (Type::UInt8, _)         => cast_unsigned!(self, u8, ti, u8, i64, i64),
+            (Type::UInt16, _)        => cast_unsigned!(self, u16, ti, u16, i64, i64),
+            (Type::UInt32, _)        => cast_unsigned!(self, u32, ti, u32, i64, i64),
+            (Type::UInt64, _)        => cast_unsigned!(self, u64, ti, u64, i64, i64),
+            _                        => unexpected_type(ti)
         }
     }
 
@@ -713,9 +773,9 @@ impl<R: ReadBytesExt + Skip> Decoder<R> {
             ti@(Type::UInt16, _) => self.kernel.u16(&ti).and(Ok(true)),
             ti@(Type::UInt32, _) => self.kernel.u32(&ti).and(Ok(true)),
             ti@(Type::UInt64, _) => self.kernel.u64(&ti).and(Ok(true)),
-            ti@(Type::Int8, _)   => self.kernel.i8(&ti).and(Ok(true)),
-            ti@(Type::Int16, _)  => self.kernel.i16(&ti).and(Ok(true)),
-            ti@(Type::Int32, _)  => self.kernel.i32(&ti).and(Ok(true)),
+            ti@(Type::Int8, _)   => self.kernel.i16(&ti).and(Ok(true)),
+            ti@(Type::Int16, _)  => self.kernel.i32(&ti).and(Ok(true)),
+            ti@(Type::Int32, _)  => self.kernel.i64(&ti).and(Ok(true)),
             ti@(Type::Int64, _)  => self.kernel.i64(&ti).and(Ok(true)),
             (Type::Bool, _)      => Ok(true),
             (Type::Null, _)      => Ok(true),
@@ -869,9 +929,33 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
             ti@(Type::UInt16, _)  => self.decoder.kernel.u16(&ti).map(Value::U16),
             ti@(Type::UInt32, _)  => self.decoder.kernel.u32(&ti).map(Value::U32),
             ti@(Type::UInt64, _)  => self.decoder.kernel.u64(&ti).map(Value::U64),
-            ti@(Type::Int8, _)    => self.decoder.kernel.i8(&ti).map(Value::I8),
-            ti@(Type::Int16, _)   => self.decoder.kernel.i16(&ti).map(Value::I16),
-            ti@(Type::Int32, _)   => self.decoder.kernel.i32(&ti).map(Value::I32),
+            ti@(Type::Int8, _)    =>
+                self.decoder.kernel.i16(&ti)
+                    .map(|n| {
+                        if n > i8::MAX as i16 || n < i8::MIN as i16 {
+                            Value::I16(n)
+                        } else {
+                            Value::I8(n as i8)
+                        }
+                    }),
+            ti@(Type::Int16, _)   =>
+                self.decoder.kernel.i32(&ti)
+                    .map(|n| {
+                        if n > i16::MAX as i32 || n < i16::MIN as i32 {
+                            Value::I32(n)
+                        } else {
+                            Value::I16(n as i16)
+                        }
+                    }),
+            ti@(Type::Int32, _)   =>
+                self.decoder.kernel.i64(&ti)
+                    .map(|n| {
+                        if n > i32::MAX as i64 || n < i32::MIN as i64 {
+                            Value::I64(n)
+                        } else {
+                            Value::I32(n as i32)
+                        }
+                    }),
             ti@(Type::Int64, _)   => self.decoder.kernel.i64(&ti).map(Value::I64),
             ti@(Type::Float16, _) => self.decoder.kernel.f16(&ti).map(Value::F32),
             ti@(Type::Float32, _) => self.decoder.kernel.f32(&ti).map(Value::F32),
@@ -1014,16 +1098,21 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
         match try!(self.decode_value(level)) {
             Value::Bool(x)   => Ok(Key::Bool(x)),
             Value::Bytes(x)  => Ok(Key::Bytes(x)),
-            Value::I8(x)     => Ok(Key::I8(x)),
-            Value::I16(x)    => Ok(Key::I16(x)),
-            Value::I32(x)    => Ok(Key::I32(x)),
-            Value::I64(x)    => Ok(Key::I64(x)),
+            Value::I8(x)     => Ok(Key::Num(x as i64)),
+            Value::I16(x)    => Ok(Key::Num(x as i64)),
+            Value::I32(x)    => Ok(Key::Num(x as i64)),
+            Value::I64(x)    => Ok(Key::Num(x)),
             Value::Text(x)   => Ok(Key::Text(x)),
-            Value::U8(x)     => Ok(Key::U8(x)),
-            Value::U16(x)    => Ok(Key::U16(x)),
-            Value::U32(x)    => Ok(Key::U32(x)),
-            Value::U64(x)    => Ok(Key::U64(x)),
-            other            => Err(DecodeError::InvalidKey(other))
+            Value::U8(x)     => Ok(Key::Num(x as i64)),
+            Value::U16(x)    => Ok(Key::Num(x as i64)),
+            Value::U32(x)    => Ok(Key::Num(x as i64)),
+            Value::U64(x)    =>
+                if x > i64::MAX as u64 {
+                    Err(DecodeError::IntOverflow(x))
+                } else {
+                    Ok(Key::Num(x as i64))
+                },
+            other => Err(DecodeError::InvalidKey(other))
         }
     }
 }
@@ -1213,7 +1302,7 @@ mod tests {
         let v = gen_decoder("a2616101028103").value().ok().unwrap();
         let d = value::Cursor::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
-        assert_eq!(Some(3), d.get(Key::U8(2)).at(0).u8())
+        assert_eq!(Some(3), d.get(Key::Num(2)).at(0).u8())
     }
 
     #[test]
