@@ -45,49 +45,41 @@ pub enum Value {
 /// to `i8`, `i16`, `i32` or `i64` can result in integer overflows.
 /// If all possible values should be handled, this type can be used.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Int {
-    pub neg: bool,
-    pub val: u64
+pub enum Int {
+    Neg(u64),
+    Pos(u64)
 }
 
 impl Int {
-    pub fn new(negative: bool, value: u64) -> Int {
-        if negative {
-            Int { neg: true, val: value }
-        } else {
-            Int { neg: false, val: value }
-        }
-    }
-
     pub fn from_u64(n: u64) -> Int {
-        Int::new(false, n)
+        Int::Pos(n)
     }
 
     pub fn from_i64(n: i64) -> Int {
         if n < 0 {
-            Int::new(true, i64::abs(n) as u64 - 1)
+            Int::Neg(i64::abs(n) as u64 - 1)
         } else {
-            Int::new(false, n as u64)
+            Int::Pos(n as u64)
         }
     }
 
     /// Map this value to an `i64`. If the value does not
     /// fit within `[i64::MIN, i64::MAX]`, `None` is returned instead.
     pub fn i64(&self) -> Option<i64> {
-        if self.val > i64::MAX as u64 {
-            return None
-        }
-        if self.neg {
-            Some(-1 - self.val as i64)
-        } else {
-            Some(self.val as i64)
+        match self {
+            &Int::Neg(n) if n <= i64::MAX as u64 => Some(-1 - n as i64),
+            &Int::Pos(n) if n <= i64::MAX as u64 => Some(n as i64),
+            _ => None
         }
     }
 
     /// Map this value to a `u64`. If the value is negative,
     /// `None` is returned instead.
     pub fn u64(&self) -> Option<u64> {
-        if self.neg { None } else { Some(self.val) }
+        match self {
+            &Int::Pos(n) => Some(n),
+            _            => None
+        }
     }
 }
 

@@ -78,7 +78,11 @@ fn gen_key<G: Gen>(g: &mut G) -> Key {
 }
 
 fn gen_int<G: Gen>(g: &mut G) -> Int {
-    Int::new(g.gen(), g.gen())
+    if g.gen() {
+        Int::Pos(g.gen())
+    } else {
+        Int::Neg(g.gen())
+    }
 }
 
 fn gen_tag<G: Gen>(g: &mut G) -> Tag {

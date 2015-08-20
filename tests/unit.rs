@@ -31,12 +31,12 @@ fn int_min_max() {
     util::identity(|mut e| e.i32(i32::MIN), |mut d| d.i32().unwrap() == i32::MIN);
     util::identity(|mut e| e.i64(i64::MAX), |mut d| d.i64().unwrap() == i64::MAX);
     util::identity(|mut e| e.i64(i64::MIN), |mut d| d.i64().unwrap() == i64::MIN);
-    util::identity(|mut e| e.int(Int::new(true, u64::MAX)), |mut d| d.int().unwrap() == Int::new(true, u64::MAX));
-    util::identity(|mut e| e.int(Int::new(false, u64::MAX)), |mut d| d.int().unwrap().u64() == Some(u64::MAX));
-    assert_eq!(Some(i64::MIN), Int::new(true, i64::MAX as u64).i64());
-    assert_eq!(Some(i64::MAX), Int::new(false, i64::MAX as u64).i64());
-    assert_eq!(Some(u64::MIN), Int::new(false, u64::MIN).u64());
-    assert_eq!(Some(u64::MAX), Int::new(false, u64::MAX).u64())
+    util::identity(|mut e| e.int(Int::Neg(u64::MAX)), |mut d| d.int().unwrap() == Int::Neg(u64::MAX));
+    util::identity(|mut e| e.int(Int::Pos(u64::MAX)), |mut d| d.int().unwrap().u64() == Some(u64::MAX));
+    assert_eq!(Some(i64::MIN), Int::Neg(i64::MAX as u64).i64());
+    assert_eq!(Some(i64::MAX), Int::Pos(i64::MAX as u64).i64());
+    assert_eq!(Some(u64::MIN), Int::Pos(u64::MIN).u64());
+    assert_eq!(Some(u64::MAX), Int::Pos(u64::MAX).u64())
 }
 
 #[test]

@@ -464,13 +464,13 @@ impl<R: ReadBytesExt> Kernel<R> {
             | (Type::Int16, a)
             | (Type::Int32, a)
             | (Type::Int64, a) =>
-                self.unsigned(a).map(|n| Int::new(true, n)),
+                self.unsigned(a).map(|n| Int::Neg(n)),
 
               (Type::UInt8, a)
             | (Type::UInt16, a)
             | (Type::UInt32, a)
             | (Type::UInt64, a) =>
-                self.unsigned(a).map(|n| Int::new(false, n)),
+                self.unsigned(a).map(|n| Int::Pos(n)),
 
             _ => unexpected_type(ti)
         }
@@ -986,7 +986,7 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
                 self.decoder.kernel.unsigned(a)
                     .map(|n| {
                         if n > i64::MAX as u64 {
-                            Value::Int(Int::new(true, n))
+                            Value::Int(Int::Neg(n))
                         } else {
                             Value::I64(-1 - n as i64)
                         }
@@ -1215,7 +1215,7 @@ mod tests {
         assert_eq!(Some(Some(0xffffffffffffffff)), decoder("1bffffffffffffffff").int().ok().map(|n| n.u64()));
         assert_eq!(Some(Some(0x7fffffffffffffff)), decoder("1b7fffffffffffffff").int().ok().map(|n| n.i64()));
         assert_eq!(Some(Some(-9223372036854775808)), decoder("3b7fffffffffffffff").int().ok().map(|n| n.i64()));
-        assert_eq!(Some(Int::new(true, u64::MAX)), decoder("3bffffffffffffffff").int().ok());
+        assert_eq!(Some(Int::Neg(u64::MAX)), decoder("3bffffffffffffffff").int().ok());
         assert_eq!(Some(Some(-1)), decoder("20").int().ok().map(|n| n.i64()));
         assert_eq!(Some(Some(-10)), decoder("29").int().ok().map(|n| n.i64()));
         assert_eq!(Some(Some(-100)), decoder("3863").int().ok().map(|n| n.i64()));
@@ -1223,7 +1223,7 @@ mod tests {
         assert_eq!(Some(Some(-1000)), decoder("3903e7").int().ok().map(|n| n.i64()));
         assert_eq!(Some(Some(-343434)), decoder("3a00053d89").int().ok().map(|n| n.i64()));
         assert_eq!(Some(Some(-23764523654)), decoder("3b000000058879da85").int().ok().map(|n| n.i64()));
-        assert_eq!(Some(Value::Int(Int::new(true, u64::MAX))), gen_decoder("3bffffffffffffffff").value().ok())
+        assert_eq!(Some(Value::Int(Int::Neg(u64::MAX))), gen_decoder("3bffffffffffffffff").value().ok())
     }
 
     #[test]
