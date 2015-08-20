@@ -4,11 +4,11 @@
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
 use cbor::{Config, GenericDecoder};
-use cbor::value::{Key, Text, Value};
+use cbor::value::{Int, Key, Text, Value};
 use rustc_serialize::base64::FromBase64;
 use serde_json as json;
 use serde_json::de::from_reader;
-use std::{f32, f64};
+use std::{f32, f64, i8, i16, i32, i64, u64};
 use std::fs::File;
 use util;
 
@@ -19,6 +19,24 @@ struct TestVector {
     roundtrip: bool,
     decoded: Option<json::Value>,
     diagnostic: Option<json::Value>
+}
+
+#[test]
+fn int_min_max() {
+    util::identity(|mut e| e.i8(i8::MAX), |mut d| d.i8().unwrap() == i8::MAX);
+    util::identity(|mut e| e.i8(i8::MIN), |mut d| d.i8().unwrap() == i8::MIN);
+    util::identity(|mut e| e.i16(i16::MAX), |mut d| d.i16().unwrap() == i16::MAX);
+    util::identity(|mut e| e.i16(i16::MIN), |mut d| d.i16().unwrap() == i16::MIN);
+    util::identity(|mut e| e.i32(i32::MAX), |mut d| d.i32().unwrap() == i32::MAX);
+    util::identity(|mut e| e.i32(i32::MIN), |mut d| d.i32().unwrap() == i32::MIN);
+    util::identity(|mut e| e.i64(i64::MAX), |mut d| d.i64().unwrap() == i64::MAX);
+    util::identity(|mut e| e.i64(i64::MIN), |mut d| d.i64().unwrap() == i64::MIN);
+    util::identity(|mut e| e.int(Int::new(true, u64::MAX)), |mut d| d.int().unwrap() == Int::new(true, u64::MAX));
+    util::identity(|mut e| e.int(Int::new(false, u64::MAX)), |mut d| d.int().unwrap().u64() == Some(u64::MAX));
+    assert_eq!(Some(i64::MIN), Int::new(true, i64::MAX as u64).i64());
+    assert_eq!(Some(i64::MAX), Int::new(false, i64::MAX as u64).i64());
+    assert_eq!(Some(u64::MIN), Int::new(false, u64::MIN).u64());
+    assert_eq!(Some(u64::MAX), Int::new(false, u64::MAX).u64())
 }
 
 #[test]

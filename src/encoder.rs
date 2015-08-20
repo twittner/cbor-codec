@@ -71,7 +71,7 @@ use std::io;
 use std::error::Error;
 use std::fmt;
 use types::{Tag, Type};
-use value::{Bytes, Key, Simple, Text, Value};
+use value::{Bytes, Int, Key, Simple, Text, Value};
 
 // Encoder Error Type ///////////////////////////////////////////////////////
 
@@ -238,6 +238,21 @@ impl<W: WriteBytesExt> Encoder<W> {
                 n @ 0x100000...0xFFFFFFFF => w.write_u8(0b001_00000 | 26).and(w.write_u32::<BigEndian>(n as u32)).map_err(From::from),
                 n                         => w.write_u8(0b001_00000 | 27).and(w.write_u64::<BigEndian>(n)).map_err(From::from)
             }
+        }
+    }
+
+    pub fn int(&mut self, x: Int) -> EncodeResult {
+        if x.neg {
+            let ref mut w = self.writer;
+            match x.val {
+                n @ 0...23                => w.write_u8(0b001_00000 | n as u8).map_err(From::from),
+                n @ 24...0xFF             => w.write_u8(0b001_00000 | 24).and(w.write_u8(n as u8)).map_err(From::from),
+                n @ 0x100...0xFFFF        => w.write_u8(0b001_00000 | 25).and(w.write_u16::<BigEndian>(n as u16)).map_err(From::from),
+                n @ 0x100000...0xFFFFFFFF => w.write_u8(0b001_00000 | 26).and(w.write_u32::<BigEndian>(n as u32)).map_err(From::from),
+                n                         => w.write_u8(0b001_00000 | 27).and(w.write_u64::<BigEndian>(n)).map_err(From::from)
+            }
+        } else {
+            self.u64(x.val)
         }
     }
 
@@ -414,6 +429,7 @@ impl<W: WriteBytesExt> GenericEncoder<W> {
             &Value::I16(n)    => self.encoder.i16(n),
             &Value::I32(n)    => self.encoder.i32(n),
             &Value::I64(n)    => self.encoder.i64(n),
+            &Value::Int(n)    => self.encoder.int(n),
             &Value::Break     => Err(EncodeError::InvalidValue(Value::Break))
         }
     }

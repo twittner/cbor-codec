@@ -9,6 +9,7 @@
 //! a `Value`.
 
 use std::collections::{BTreeMap, LinkedList};
+use std::i64;
 use types::Tag;
 
 /// The generic CBOR representation.
@@ -24,6 +25,7 @@ pub enum Value {
     I16(i16),
     I32(i32),
     I64(i64),
+    Int(Int),
     Map(BTreeMap<Key, Value>),
     Null,
     Simple(Simple),
@@ -34,6 +36,47 @@ pub enum Value {
     U32(u32),
     U64(u64),
     Undefined
+}
+
+/// Type to represent all possible CBOR integer values.
+///
+/// Since the encoding of negative integers (major type 1) follows
+/// unsigned integers (major type 0), mapping negative integers
+/// to `i8`, `i16`, `i32` or `i64` can result in integer overflows.
+/// If all possible values should be handled, this type can be used.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Int {
+    pub neg: bool,
+    pub val: u64
+}
+
+impl Int {
+    pub fn new(negative: bool, value: u64) -> Int {
+        if negative {
+            Int { neg: true, val: value }
+        } else {
+            Int { neg: false, val: value }
+        }
+    }
+
+    /// Map this value to an `i64`. If the value does not
+    /// fit within `[i64::MIN, i64::MAX]`, `None` is returned instead.
+    pub fn i64(&self) -> Option<i64> {
+        if self.val > i64::MAX as u64 {
+            return None
+        }
+        if self.neg {
+            Some(-1 - self.val as i64)
+        } else {
+            Some(self.val as i64)
+        }
+    }
+
+    /// Map this value to a `u64`. If the value is negative,
+    /// `None` is returned instead.
+    pub fn u64(&self) -> Option<u64> {
+        if self.neg { None } else { Some(self.val) }
+    }
 }
 
 /// A unification of plain and indefinitly sized strings.
