@@ -563,7 +563,7 @@ impl<R: ReadBytesExt> Decoder<R> {
         self.kernel.into_reader()
     }
 
-    pub fn kernel<'x>(&'x mut self) -> &'x mut Kernel<R> {
+    pub fn kernel(&mut self) -> &mut Kernel<R> {
         &mut self.kernel
     }
 

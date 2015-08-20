@@ -145,7 +145,7 @@ impl<W: WriteBytesExt> Encoder<W> {
         self.writer
     }
 
-    pub fn writer<'x>(&'x mut self) -> &'x mut W {
+    pub fn writer(&mut self) -> &mut W {
         &mut self.writer
     }
 
