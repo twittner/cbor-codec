@@ -145,6 +145,10 @@ impl<W: WriteBytesExt> Encoder<W> {
         self.writer
     }
 
+    pub fn writer<'x>(&'x mut self) -> &'x mut W {
+        &mut self.writer
+    }
+
     pub fn u8(&mut self, x: u8) -> EncodeResult {
         let ref mut w = self.writer;
         match x {
