@@ -72,7 +72,7 @@
 //!     let value = d.value().unwrap();
 //!     let     c = value::Cursor::new(&value);
 //!     assert_eq!(Some(1), c.field("a").u8());
-//!     assert_eq!(Some(3), c.get(Key::Num(2)).at(0).u8())
+//!     assert_eq!(Some(3), c.get(Key::u64(2)).at(0).u8())
 //! }
 //! ```
 //!
@@ -1130,25 +1130,22 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
 
     fn decode_key(&mut self, level: usize) -> DecodeResult<Key> {
         match try!(self.decode_value(level)) {
-            Value::Bool(x)   => Ok(Key::Bool(x)),
-            Value::Bytes(x)  => Ok(Key::Bytes(x)),
-            Value::I8(x)     => Ok(Key::Num(x as i64)),
-            Value::I16(x)    => Ok(Key::Num(x as i64)),
-            Value::I32(x)    => Ok(Key::Num(x as i64)),
-            Value::I64(x)    => Ok(Key::Num(x)),
-            Value::Text(x)   => Ok(Key::Text(x)),
-            Value::U8(x)     => Ok(Key::Num(x as i64)),
-            Value::U16(x)    => Ok(Key::Num(x as i64)),
-            Value::U32(x)    => Ok(Key::Num(x as i64)),
-            Value::U64(x)    =>
-                if x > i64::MAX as u64 {
-                    Err(DecodeError::IntOverflow(x))
-                } else {
-                    Ok(Key::Num(x as i64))
-                },
-            other => Err(DecodeError::InvalidKey(other))
+            Value::Bool(x)  => Ok(Key::Bool(x)),
+            Value::Bytes(x) => Ok(Key::Bytes(x)),
+            Value::Text(x)  => Ok(Key::Text(x)),
+            Value::I8(x)    => Ok(Key::i64(x as i64)),
+            Value::I16(x)   => Ok(Key::i64(x as i64)),
+            Value::I32(x)   => Ok(Key::i64(x as i64)),
+            Value::I64(x)   => Ok(Key::i64(x)),
+            Value::U8(x)    => Ok(Key::u64(x as u64)),
+            Value::U16(x)   => Ok(Key::u64(x as u64)),
+            Value::U32(x)   => Ok(Key::u64(x as u64)),
+            Value::U64(x)   => Ok(Key::u64(x)),
+            Value::Int(x)   => Ok(Key::Int(x)),
+            other           => Err(DecodeError::InvalidKey(other))
         }
     }
+
 }
 
 // Tests ////////////////////////////////////////////////////////////////////
@@ -1373,7 +1370,7 @@ mod tests {
         let v = gen_decoder("a2616101028103").value().ok().unwrap();
         let d = value::Cursor::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
-        assert_eq!(Some(3), d.get(Key::Num(2)).at(0).u8())
+        assert_eq!(Some(3), d.get(Key::u64(2)).at(0).u8())
     }
 
     #[test]

@@ -116,7 +116,7 @@ fn to_value(k: Key) -> Value {
     match k {
         Key::Bool(x)  => Value::Bool(x),
         Key::Bytes(x) => Value::Bytes(x),
-        Key::Num(x)   => Value::I64(x),
+        Key::Int(x)   => Value::Int(x),
         Key::Text(x)  => Value::Text(x),
     }
 }

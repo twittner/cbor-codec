@@ -44,7 +44,7 @@ pub enum Value {
 /// unsigned integers (major type 0), mapping negative integers
 /// to `i8`, `i16`, `i32` or `i64` can result in integer overflows.
 /// If all possible values should be handled, this type can be used.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Int {
     pub neg: bool,
     pub val: u64
@@ -56,6 +56,18 @@ impl Int {
             Int { neg: true, val: value }
         } else {
             Int { neg: false, val: value }
+        }
+    }
+
+    pub fn from_u64(n: u64) -> Int {
+        Int::new(false, n)
+    }
+
+    pub fn from_i64(n: i64) -> Int {
+        if n < 0 {
+            Int::new(true, i64::abs(n) as u64 - 1)
+        } else {
+            Int::new(false, n as u64)
         }
     }
 
@@ -108,8 +120,18 @@ pub enum Simple {
 pub enum Key {
     Bool(bool),
     Bytes(Bytes),
-    Num(i64),
+    Int(Int),
     Text(Text)
+}
+
+impl Key {
+    pub fn u64(n: u64) -> Key {
+        Key::Int(Int::from_u64(n))
+    }
+
+    pub fn i64(n: i64) -> Key {
+        Key::Int(Int::from_i64(n))
+    }
 }
 
 /// A `Cursor` allows conventient navigation in a `Value` AST.

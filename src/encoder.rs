@@ -437,7 +437,7 @@ impl<W: WriteBytesExt> GenericEncoder<W> {
     fn key(&mut self, x: &Key) -> EncodeResult {
         match x {
             &Key::Bool(b) => self.encoder.bool(b),
-            &Key::Num(n)  => self.encoder.i64(n),
+            &Key::Int(n)  => self.encoder.int(n),
             &Key::Bytes(Bytes::Bytes(ref bb))  => self.encoder.bytes(&bb[..]),
             &Key::Bytes(Bytes::Chunks(ref bb)) => self.encoder.bytes_iter(bb.iter().map(|v| &v[..])),
             &Key::Text(Text::Text(ref txt))    => self.encoder.text(txt),
