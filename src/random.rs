@@ -10,13 +10,13 @@
 use quickcheck::{Arbitrary, Gen};
 use std::collections::{BTreeMap, LinkedList};
 use types::Tag;
-use value::{Value, Simple, Key, Bytes, Text};
+use value::{Int, Value, Simple, Key, Bytes, Text};
 
 /// Generate a random `cbor::Value`.
 /// Mostly useful for quickcheck related tests.
 /// The parameter `level` denotes the maximum nesting of this value.
 pub fn gen_value<G: Gen>(level: u16, g: &mut G) -> Value {
-    match g.gen_range(0, 19) {
+    match g.gen_range(0, 20) {
         0  => Value::Null,
         1  => Value::Undefined,
         2  => Value::U8(g.gen()),
@@ -45,6 +45,7 @@ pub fn gen_value<G: Gen>(level: u16, g: &mut G) -> Value {
                 } else {
                     BTreeMap::new()
                 }),
+        18 => Value::Int(gen_int(g)),
         _ => gen_tagged(g)
     }
 }
@@ -69,10 +70,18 @@ fn gen_map<G: Gen>(level: u16, g: &mut G) -> BTreeMap<Key, Value> {
 
 fn gen_key<G: Gen>(g: &mut G) -> Key {
     match g.gen_range(0, 4) {
-        0 => Key::Num(g.gen()),
+        0 => Key::Int(gen_int(g)),
         1 => Key::Text(gen_text(g)),
         2 => Key::Bytes(gen_bytes(g)),
         _ => Key::Bool(g.gen()),
+    }
+}
+
+fn gen_int<G: Gen>(g: &mut G) -> Int {
+    if g.gen() {
+        Int::Pos(g.gen())
+    } else {
+        Int::Neg(g.gen())
     }
 }
 

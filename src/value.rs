@@ -9,6 +9,7 @@
 //! a `Value`.
 
 use std::collections::{BTreeMap, LinkedList};
+use std::i64;
 use types::Tag;
 
 /// The generic CBOR representation.
@@ -24,6 +25,7 @@ pub enum Value {
     I16(i16),
     I32(i32),
     I64(i64),
+    Int(Int),
     Map(BTreeMap<Key, Value>),
     Null,
     Simple(Simple),
@@ -34,6 +36,51 @@ pub enum Value {
     U32(u32),
     U64(u64),
     Undefined
+}
+
+/// Type to represent all possible CBOR integer values.
+///
+/// Since the encoding of negative integers (major type 1) follows
+/// unsigned integers (major type 0), mapping negative integers
+/// to `i8`, `i16`, `i32` or `i64` can result in integer overflows.
+/// If all possible values should be handled, this type can be used.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Int {
+    Neg(u64),
+    Pos(u64)
+}
+
+impl Int {
+    pub fn from_u64(n: u64) -> Int {
+        Int::Pos(n)
+    }
+
+    pub fn from_i64(n: i64) -> Int {
+        if n < 0 {
+            Int::Neg(i64::abs(n) as u64 - 1)
+        } else {
+            Int::Pos(n as u64)
+        }
+    }
+
+    /// Map this value to an `i64`. If the value does not
+    /// fit within `[i64::MIN, i64::MAX]`, `None` is returned instead.
+    pub fn i64(&self) -> Option<i64> {
+        match self {
+            &Int::Neg(n) if n <= i64::MAX as u64 => Some(-1 - n as i64),
+            &Int::Pos(n) if n <= i64::MAX as u64 => Some(n as i64),
+            _ => None
+        }
+    }
+
+    /// Map this value to a `u64`. If the value is negative,
+    /// `None` is returned instead.
+    pub fn u64(&self) -> Option<u64> {
+        match self {
+            &Int::Pos(n) => Some(n),
+            _            => None
+        }
+    }
 }
 
 /// A unification of plain and indefinitly sized strings.
@@ -65,8 +112,18 @@ pub enum Simple {
 pub enum Key {
     Bool(bool),
     Bytes(Bytes),
-    Num(i64),
+    Int(Int),
     Text(Text)
+}
+
+impl Key {
+    pub fn u64(n: u64) -> Key {
+        Key::Int(Int::from_u64(n))
+    }
+
+    pub fn i64(n: i64) -> Key {
+        Key::Int(Int::from_i64(n))
+    }
 }
 
 /// A `Cursor` allows conventient navigation in a `Value` AST.

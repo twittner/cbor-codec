@@ -72,7 +72,7 @@
 //!     let value = d.value().unwrap();
 //!     let     c = value::Cursor::new(&value);
 //!     assert_eq!(Some(1), c.field("a").u8());
-//!     assert_eq!(Some(3), c.get(Key::Num(2)).at(0).u8())
+//!     assert_eq!(Some(3), c.get(Key::u64(2)).at(0).u8())
 //! }
 //! ```
 //!
@@ -97,7 +97,7 @@ use std::io;
 use std::string;
 use skip::Skip;
 use types::{Tag, Type};
-use value::{self, Bytes, Key, Simple, Text, Value};
+use value::{self, Int, Bytes, Key, Simple, Text, Value};
 
 // Decoder Configuration ////////////////////////////////////////////////////
 
@@ -458,6 +458,24 @@ impl<R: ReadBytesExt> Kernel<R> {
         }
     }
 
+    pub fn int(&mut self, ti: &TypeInfo) -> DecodeResult<Int> {
+        match *ti {
+              (Type::Int8, a)
+            | (Type::Int16, a)
+            | (Type::Int32, a)
+            | (Type::Int64, a) =>
+                self.unsigned(a).map(|n| Int::Neg(n)),
+
+              (Type::UInt8, a)
+            | (Type::UInt16, a)
+            | (Type::UInt32, a)
+            | (Type::UInt64, a) =>
+                self.unsigned(a).map(|n| Int::Pos(n)),
+
+            _ => unexpected_type(ti)
+        }
+    }
+
     pub fn f16(&mut self, ti: &TypeInfo) -> DecodeResult<f32> {
         match ti.0 {
             Type::Float16 => {
@@ -605,6 +623,10 @@ impl<R: ReadBytesExt> Decoder<R> {
 
     pub fn i64(&mut self) -> DecodeResult<i64> {
         self.typeinfo().and_then(|ti| self.kernel.i64(&ti))
+    }
+
+    pub fn int(&mut self) -> DecodeResult<Int> {
+        self.typeinfo().and_then(|ti| self.kernel.int(&ti))
     }
 
     pub fn f16(&mut self) -> DecodeResult<f32> {
@@ -942,7 +964,7 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
                             Value::I8(n as i8)
                         }
                     }),
-            ti@(Type::Int16, _)   =>
+            ti@(Type::Int16, _) =>
                 self.decoder.kernel.i32(&ti)
                     .map(|n| {
                         if n > i16::MAX as i32 || n < i16::MIN as i32 {
@@ -951,7 +973,7 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
                             Value::I16(n as i16)
                         }
                     }),
-            ti@(Type::Int32, _)   =>
+            ti@(Type::Int32, _) =>
                 self.decoder.kernel.i64(&ti)
                     .map(|n| {
                         if n > i32::MAX as i64 || n < i32::MIN as i64 {
@@ -960,7 +982,15 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
                             Value::I32(n as i32)
                         }
                     }),
-            ti@(Type::Int64, _)   => self.decoder.kernel.i64(&ti).map(Value::I64),
+            (Type::Int64, a) =>
+                self.decoder.kernel.unsigned(a)
+                    .map(|n| {
+                        if n > i64::MAX as u64 {
+                            Value::Int(Int::Neg(n))
+                        } else {
+                            Value::I64(-1 - n as i64)
+                        }
+                    }),
             ti@(Type::Float16, _) => self.decoder.kernel.f16(&ti).map(Value::F32),
             ti@(Type::Float32, _) => self.decoder.kernel.f32(&ti).map(Value::F32),
             ti@(Type::Float64, _) => self.decoder.kernel.f64(&ti).map(Value::F64),
@@ -1100,25 +1130,22 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
 
     fn decode_key(&mut self, level: usize) -> DecodeResult<Key> {
         match try!(self.decode_value(level)) {
-            Value::Bool(x)   => Ok(Key::Bool(x)),
-            Value::Bytes(x)  => Ok(Key::Bytes(x)),
-            Value::I8(x)     => Ok(Key::Num(x as i64)),
-            Value::I16(x)    => Ok(Key::Num(x as i64)),
-            Value::I32(x)    => Ok(Key::Num(x as i64)),
-            Value::I64(x)    => Ok(Key::Num(x)),
-            Value::Text(x)   => Ok(Key::Text(x)),
-            Value::U8(x)     => Ok(Key::Num(x as i64)),
-            Value::U16(x)    => Ok(Key::Num(x as i64)),
-            Value::U32(x)    => Ok(Key::Num(x as i64)),
-            Value::U64(x)    =>
-                if x > i64::MAX as u64 {
-                    Err(DecodeError::IntOverflow(x))
-                } else {
-                    Ok(Key::Num(x as i64))
-                },
-            other => Err(DecodeError::InvalidKey(other))
+            Value::Bool(x)  => Ok(Key::Bool(x)),
+            Value::Bytes(x) => Ok(Key::Bytes(x)),
+            Value::Text(x)  => Ok(Key::Text(x)),
+            Value::I8(x)    => Ok(Key::i64(x as i64)),
+            Value::I16(x)   => Ok(Key::i64(x as i64)),
+            Value::I32(x)   => Ok(Key::i64(x as i64)),
+            Value::I64(x)   => Ok(Key::i64(x)),
+            Value::U8(x)    => Ok(Key::u64(x as u64)),
+            Value::U16(x)   => Ok(Key::u64(x as u64)),
+            Value::U32(x)   => Ok(Key::u64(x as u64)),
+            Value::U64(x)   => Ok(Key::u64(x)),
+            Value::Int(x)   => Ok(Key::Int(x)),
+            other           => Err(DecodeError::InvalidKey(other))
         }
     }
+
 }
 
 // Tests ////////////////////////////////////////////////////////////////////
@@ -1126,12 +1153,12 @@ impl<R: ReadBytesExt> GenericDecoder<R> {
 #[cfg(test)]
 mod tests {
     use rustc_serialize::hex::FromHex;
-    use std::{f32, f64};
+    use std::{f32, f64, u64};
     use std::collections::BTreeMap;
     use std::io::Cursor;
     use super::*;
     use types::Tag;
-    use value::{self, Key, Simple, Value};
+    use value::{self, Int, Key, Simple, Value};
 
     #[test]
     fn unsigned() {
@@ -1170,6 +1197,33 @@ mod tests {
         assert_eq!(Some(100), decoder("1864").i8().ok());
         assert_eq!(Some(1000), decoder("1903e8").i16().ok());
         assert_eq!(Some(1000000), decoder("1a000f4240").i32().ok());
+    }
+
+    #[test]
+    fn int() {
+        assert_eq!(Some(Some(0)), decoder("00").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(1)), decoder("01").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(10)), decoder("0a").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(23)), decoder("17").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(24)), decoder("1818").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(25)), decoder("1819").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(100)), decoder("1864").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(1000)), decoder("1903e8").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(1000000)), decoder("1a000f4240").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(1000000000000)), decoder("1b000000e8d4a51000").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(None), decoder("1bffffffffffffffff").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(0xffffffffffffffff)), decoder("1bffffffffffffffff").int().ok().map(|n| n.u64()));
+        assert_eq!(Some(Some(0x7fffffffffffffff)), decoder("1b7fffffffffffffff").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-9223372036854775808)), decoder("3b7fffffffffffffff").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Int::Neg(u64::MAX)), decoder("3bffffffffffffffff").int().ok());
+        assert_eq!(Some(Some(-1)), decoder("20").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-10)), decoder("29").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-100)), decoder("3863").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-500)), decoder("3901f3").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-1000)), decoder("3903e7").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-343434)), decoder("3a00053d89").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Some(-23764523654)), decoder("3b000000058879da85").int().ok().map(|n| n.i64()));
+        assert_eq!(Some(Value::Int(Int::Neg(u64::MAX))), gen_decoder("3bffffffffffffffff").value().ok())
     }
 
     #[test]
@@ -1316,7 +1370,7 @@ mod tests {
         let v = gen_decoder("a2616101028103").value().ok().unwrap();
         let d = value::Cursor::new(&v);
         assert_eq!(Some(1), d.field("a").u8());
-        assert_eq!(Some(3), d.get(Key::Num(2)).at(0).u8())
+        assert_eq!(Some(3), d.get(Key::u64(2)).at(0).u8())
     }
 
     #[test]
