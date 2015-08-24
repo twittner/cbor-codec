@@ -355,6 +355,51 @@
 <span id="313">313</span>
 <span id="314">314</span>
 <span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
 </pre><pre class='rust '>
 <span class='comment'>// This Source Code Form is subject to the terms of</span>
 <span class='comment'>// the Mozilla Public License, v. 2.0. If a copy of</span>
@@ -367,6 +412,7 @@
 <span class='doccomment'>//! a `Value`.</span>
 
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>collections</span>::{<span class='ident'>BTreeMap</span>, <span class='ident'>LinkedList</span>};
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>i64</span>;
 <span class='kw'>use</span> <span class='ident'>types</span>::<span class='ident'>Tag</span>;
 
 <span class='doccomment'>/// The generic CBOR representation.</span>
@@ -382,6 +428,7 @@
     <span class='ident'>I16</span>(<span class='ident'>i16</span>),
     <span class='ident'>I32</span>(<span class='ident'>i32</span>),
     <span class='ident'>I64</span>(<span class='ident'>i64</span>),
+    <span class='ident'>Int</span>(<span class='ident'>Int</span>),
     <span class='ident'>Map</span>(<span class='ident'>BTreeMap</span><span class='op'>&lt;</span><span class='ident'>Key</span>, <span class='ident'>Value</span><span class='op'>&gt;</span>),
     <span class='ident'>Null</span>,
     <span class='ident'>Simple</span>(<span class='ident'>Simple</span>),
@@ -392,6 +439,51 @@
     <span class='ident'>U32</span>(<span class='ident'>u32</span>),
     <span class='ident'>U64</span>(<span class='ident'>u64</span>),
     <span class='ident'>Undefined</span>
+}
+
+<span class='doccomment'>/// Type to represent all possible CBOR integer values.</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// Since the encoding of negative integers (major type 1) follows</span>
+<span class='doccomment'>/// unsigned integers (major type 0), mapping negative integers</span>
+<span class='doccomment'>/// to `i8`, `i16`, `i32` or `i64` can result in integer overflows.</span>
+<span class='doccomment'>/// If all possible values should be handled, this type can be used.</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Clone</span>, <span class='ident'>Copy</span>, <span class='ident'>Debug</span>, <span class='ident'>Hash</span>, <span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>PartialOrd</span>, <span class='ident'>Ord</span>)]</span>
+<span class='kw'>pub</span> <span class='kw'>enum</span> <span class='ident'>Int</span> {
+    <span class='ident'>Neg</span>(<span class='ident'>u64</span>),
+    <span class='ident'>Pos</span>(<span class='ident'>u64</span>)
+}
+
+<span class='kw'>impl</span> <span class='ident'>Int</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>from_u64</span>(<span class='ident'>n</span>: <span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>Int</span> {
+        <span class='ident'>Int</span>::<span class='ident'>Pos</span>(<span class='ident'>n</span>)
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>from_i64</span>(<span class='ident'>n</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>Int</span> {
+        <span class='kw'>if</span> <span class='ident'>n</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
+            <span class='ident'>Int</span>::<span class='ident'>Neg</span>(<span class='ident'>i64</span>::<span class='ident'>abs</span>(<span class='ident'>n</span>) <span class='kw'>as</span> <span class='ident'>u64</span> <span class='op'>-</span> <span class='number'>1</span>)
+        } <span class='kw'>else</span> {
+            <span class='ident'>Int</span>::<span class='ident'>Pos</span>(<span class='ident'>n</span> <span class='kw'>as</span> <span class='ident'>u64</span>)
+        }
+    }
+
+    <span class='doccomment'>/// Map this value to an `i64`. If the value does not</span>
+    <span class='doccomment'>/// fit within `[i64::MIN, i64::MAX]`, `None` is returned instead.</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i64</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>i64</span><span class='op'>&gt;</span> {
+        <span class='kw'>match</span> <span class='self'>self</span> {
+            <span class='kw-2'>&amp;</span><span class='ident'>Int</span>::<span class='ident'>Neg</span>(<span class='ident'>n</span>) <span class='kw'>if</span> <span class='ident'>n</span> <span class='op'>&lt;=</span> <span class='ident'>i64</span>::<span class='ident'>MAX</span> <span class='kw'>as</span> <span class='ident'>u64</span> <span class='op'>=&gt;</span> <span class='prelude-val'>Some</span>(<span class='op'>-</span><span class='number'>1</span> <span class='op'>-</span> <span class='ident'>n</span> <span class='kw'>as</span> <span class='ident'>i64</span>),
+            <span class='kw-2'>&amp;</span><span class='ident'>Int</span>::<span class='ident'>Pos</span>(<span class='ident'>n</span>) <span class='kw'>if</span> <span class='ident'>n</span> <span class='op'>&lt;=</span> <span class='ident'>i64</span>::<span class='ident'>MAX</span> <span class='kw'>as</span> <span class='ident'>u64</span> <span class='op'>=&gt;</span> <span class='prelude-val'>Some</span>(<span class='ident'>n</span> <span class='kw'>as</span> <span class='ident'>i64</span>),
+            _ <span class='op'>=&gt;</span> <span class='prelude-val'>None</span>
+        }
+    }
+
+    <span class='doccomment'>/// Map this value to a `u64`. If the value is negative,</span>
+    <span class='doccomment'>/// `None` is returned instead.</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>u64</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>u64</span><span class='op'>&gt;</span> {
+        <span class='kw'>match</span> <span class='self'>self</span> {
+            <span class='kw-2'>&amp;</span><span class='ident'>Int</span>::<span class='ident'>Pos</span>(<span class='ident'>n</span>) <span class='op'>=&gt;</span> <span class='prelude-val'>Some</span>(<span class='ident'>n</span>),
+            _            <span class='op'>=&gt;</span> <span class='prelude-val'>None</span>
+        }
+    }
 }
 
 <span class='doccomment'>/// A unification of plain and indefinitly sized strings.</span>
@@ -419,24 +511,22 @@
 
 <span class='doccomment'>/// CBOR allows heterogenous keys in objects. This enum unifies</span>
 <span class='doccomment'>/// all currently allowed key types.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// Please note that identical numeric values wrapped in different</span>
-<span class='doccomment'>/// constructors (e.g. `U8(42)`, `U16(42)`) are *distinct* map keys</span>
-<span class='doccomment'>/// but identical when encoded. An object encoded this way will</span>
-<span class='doccomment'>/// trigger a `DecodeError::DuplicateKey` error when decoded again.</span>
 <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Clone</span>, <span class='ident'>Debug</span>, <span class='ident'>PartialEq</span>, <span class='ident'>PartialOrd</span>, <span class='ident'>Eq</span>, <span class='ident'>Ord</span>, <span class='ident'>Hash</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>enum</span> <span class='ident'>Key</span> {
     <span class='ident'>Bool</span>(<span class='ident'>bool</span>),
     <span class='ident'>Bytes</span>(<span class='ident'>Bytes</span>),
-    <span class='ident'>I8</span>(<span class='ident'>i8</span>),
-    <span class='ident'>I16</span>(<span class='ident'>i16</span>),
-    <span class='ident'>I32</span>(<span class='ident'>i32</span>),
-    <span class='ident'>I64</span>(<span class='ident'>i64</span>),
-    <span class='ident'>Text</span>(<span class='ident'>Text</span>),
-    <span class='ident'>U8</span>(<span class='ident'>u8</span>),
-    <span class='ident'>U16</span>(<span class='ident'>u16</span>),
-    <span class='ident'>U32</span>(<span class='ident'>u32</span>),
-    <span class='ident'>U64</span>(<span class='ident'>u64</span>)
+    <span class='ident'>Int</span>(<span class='ident'>Int</span>),
+    <span class='ident'>Text</span>(<span class='ident'>Text</span>)
+}
+
+<span class='kw'>impl</span> <span class='ident'>Key</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>u64</span>(<span class='ident'>n</span>: <span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>Key</span> {
+        <span class='ident'>Key</span>::<span class='ident'>Int</span>(<span class='ident'>Int</span>::<span class='ident'>from_u64</span>(<span class='ident'>n</span>))
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i64</span>(<span class='ident'>n</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>Key</span> {
+        <span class='ident'>Key</span>::<span class='ident'>Int</span>(<span class='ident'>Int</span>::<span class='ident'>from_i64</span>(<span class='ident'>n</span>))
+    }
 }
 
 <span class='doccomment'>/// A `Cursor` allows conventient navigation in a `Value` AST.</span>

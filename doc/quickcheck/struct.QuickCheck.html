@@ -59,14 +59,14 @@ the number of tests to run.</p>
 <p>By default, the maximum number of passed tests is set to <code>100</code>,
 the max number of overall tests is set to <code>10000</code> and the generator
 is set to a <code>StdGen</code> with a default size of <code>100</code>.</p>
-</div></div><h3 class='impl'><code>impl&lt;G: <a class='trait' href='../quickcheck/trait.Gen.html' title='quickcheck::Gen'>Gen</a>&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h3><div class='impl-items'><h4 id='method.tests' class='method'><code>fn <a href='#method.tests' class='fnname'>tests</a>(self, tests: <a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h4>
+</div></div><h3 class='impl'><code>impl&lt;G: <a class='trait' href='../quickcheck/trait.Gen.html' title='quickcheck::Gen'>Gen</a>&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h3><div class='impl-items'><h4 id='method.tests' class='method'><code>fn <a href='#method.tests' class='fnname'>tests</a>(self, tests: <a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h4>
 <div class='docblock'><p>Set the number of tests to run.</p>
 
 <p>This actually refers to the maximum number of <em>passed</em> tests that
 can occur. Namely, if a test causes a failure, future testing on that
 property stops. Additionally, if tests are discarded, there may be
 fewer than <code>tests</code> passed.</p>
-</div><h4 id='method.max_tests' class='method'><code>fn <a href='#method.max_tests' class='fnname'>max_tests</a>(self, max_tests: <a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h4>
+</div><h4 id='method.max_tests' class='method'><code>fn <a href='#method.max_tests' class='fnname'>max_tests</a>(self, max_tests: <a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h4>
 <div class='docblock'><p>Set the maximum number of tests to run.</p>
 
 <p>The number of invocations of a property will never exceed this number.
@@ -74,7 +74,7 @@ This is necessary to cap the number of tests because QuickCheck
 properties can discard tests.</p>
 </div><h4 id='method.gen' class='method'><code>fn <a href='#method.gen' class='fnname'>gen</a>(self, gen: G) -&gt; <a class='struct' href='../quickcheck/struct.QuickCheck.html' title='quickcheck::QuickCheck'>QuickCheck</a>&lt;G&gt;</code></h4>
 <div class='docblock'><p>Set the random number generator to be used by QuickCheck.</p>
-</div><h4 id='method.quicktest' class='method'><code>fn <a href='#method.quicktest' class='fnname'>quicktest</a>&lt;A&gt;(&amp;mut self, f: A) -&gt; <a class='enum' href='http://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, <a class='struct' href='../quickcheck/struct.TestResult.html' title='quickcheck::TestResult'>TestResult</a>&gt; <span class='where'>where A: <a class='trait' href='../quickcheck/trait.Testable.html' title='quickcheck::Testable'>Testable</a></span></code></h4>
+</div><h4 id='method.quicktest' class='method'><code>fn <a href='#method.quicktest' class='fnname'>quicktest</a>&lt;A&gt;(&amp;mut self, f: A) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, <a class='struct' href='../quickcheck/struct.TestResult.html' title='quickcheck::TestResult'>TestResult</a>&gt; <span class='where'>where A: <a class='trait' href='../quickcheck/trait.Testable.html' title='quickcheck::Testable'>Testable</a></span></code></h4>
 <div class='docblock'><p>Tests a property and returns the result.</p>
 
 <p>The result returned is either the number of tests passed or a witness

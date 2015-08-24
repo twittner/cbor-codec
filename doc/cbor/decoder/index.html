@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-17755' class='srclink' href='../../src/cbor/decoder.rs.html#6-1248' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-17380' class='srclink' href='../../src/cbor/decoder.rs.html#6-1405' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>CBOR (<a href="http://tools.ietf.org/html/rfc7049">RFC 7049</a>)
 decoder implementation supporting the following features:</p>
 
@@ -114,7 +114,7 @@ into an <code>Value</code> AST.</li>
     <span class='kw'>let</span> <span class='ident'>value</span> <span class='op'>=</span> <span class='ident'>d</span>.<span class='ident'>value</span>().<span class='ident'>unwrap</span>();
     <span class='kw'>let</span>     <span class='ident'>c</span> <span class='op'>=</span> <span class='ident'>value</span>::<span class='ident'>Cursor</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>value</span>);
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>Some</span>(<span class='number'>1</span>), <span class='ident'>c</span>.<span class='ident'>field</span>(<span class='string'>&quot;a&quot;</span>).<span class='ident'>u8</span>());
-    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>Some</span>(<span class='number'>3</span>), <span class='ident'>c</span>.<span class='ident'>get</span>(<span class='ident'>Key</span>::<span class='ident'>U8</span>(<span class='number'>2</span>)).<span class='ident'>at</span>(<span class='number'>0</span>).<span class='ident'>u8</span>())
+    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>Some</span>(<span class='number'>3</span>), <span class='ident'>c</span>.<span class='ident'>get</span>(<span class='ident'>Key</span>::<span class='ident'>u64</span>(<span class='number'>2</span>)).<span class='ident'>at</span>(<span class='number'>0</span>).<span class='ident'>u8</span>())
 }</pre>
 
 <h1 id="example-4:-direct-decoding-(optional-value)" class='section-header'><a

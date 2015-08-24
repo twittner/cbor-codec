@@ -204,6 +204,14 @@
 <span id="162">162</span>
 <span id="163">163</span>
 <span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
 </pre><pre class='rust '>
 <span class='comment'>// This Source Code Form is subject to the terms of</span>
 <span class='comment'>// the Mozilla Public License, v. 2.0. If a copy of</span>
@@ -217,13 +225,13 @@
 <span class='kw'>use</span> <span class='ident'>quickcheck</span>::{<span class='ident'>Arbitrary</span>, <span class='ident'>Gen</span>};
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>collections</span>::{<span class='ident'>BTreeMap</span>, <span class='ident'>LinkedList</span>};
 <span class='kw'>use</span> <span class='ident'>types</span>::<span class='ident'>Tag</span>;
-<span class='kw'>use</span> <span class='ident'>value</span>::{<span class='ident'>Value</span>, <span class='ident'>Simple</span>, <span class='ident'>Key</span>, <span class='ident'>Bytes</span>, <span class='ident'>Text</span>};
+<span class='kw'>use</span> <span class='ident'>value</span>::{<span class='ident'>Int</span>, <span class='ident'>Value</span>, <span class='ident'>Simple</span>, <span class='ident'>Key</span>, <span class='ident'>Bytes</span>, <span class='ident'>Text</span>};
 
 <span class='doccomment'>/// Generate a random `cbor::Value`.</span>
 <span class='doccomment'>/// Mostly useful for quickcheck related tests.</span>
 <span class='doccomment'>/// The parameter `level` denotes the maximum nesting of this value.</span>
 <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>gen_value</span><span class='op'>&lt;</span><span class='ident'>G</span>: <span class='ident'>Gen</span><span class='op'>&gt;</span>(<span class='ident'>level</span>: <span class='ident'>u16</span>, <span class='ident'>g</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>G</span>) <span class='op'>-&gt;</span> <span class='ident'>Value</span> {
-    <span class='kw'>match</span> <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='number'>19</span>) {
+    <span class='kw'>match</span> <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='number'>20</span>) {
         <span class='number'>0</span>  <span class='op'>=&gt;</span> <span class='ident'>Value</span>::<span class='ident'>Null</span>,
         <span class='number'>1</span>  <span class='op'>=&gt;</span> <span class='ident'>Value</span>::<span class='ident'>Undefined</span>,
         <span class='number'>2</span>  <span class='op'>=&gt;</span> <span class='ident'>Value</span>::<span class='ident'>U8</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>()),
@@ -252,6 +260,7 @@
                 } <span class='kw'>else</span> {
                     <span class='ident'>BTreeMap</span>::<span class='ident'>new</span>()
                 }),
+        <span class='number'>18</span> <span class='op'>=&gt;</span> <span class='ident'>Value</span>::<span class='ident'>Int</span>(<span class='ident'>gen_int</span>(<span class='ident'>g</span>)),
         _ <span class='op'>=&gt;</span> <span class='ident'>gen_tagged</span>(<span class='ident'>g</span>)
     }
 }
@@ -275,12 +284,19 @@
 }
 
 <span class='kw'>fn</span> <span class='ident'>gen_key</span><span class='op'>&lt;</span><span class='ident'>G</span>: <span class='ident'>Gen</span><span class='op'>&gt;</span>(<span class='ident'>g</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>G</span>) <span class='op'>-&gt;</span> <span class='ident'>Key</span> {
-    <span class='kw'>match</span> <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='number'>5</span>) {
-        <span class='number'>0</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>U64</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>()),
-        <span class='number'>1</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>I64</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>()),
-        <span class='number'>2</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Text</span>(<span class='ident'>gen_text</span>(<span class='ident'>g</span>)),
-        <span class='number'>3</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Bytes</span>(<span class='ident'>gen_bytes</span>(<span class='ident'>g</span>)),
+    <span class='kw'>match</span> <span class='ident'>g</span>.<span class='ident'>gen_range</span>(<span class='number'>0</span>, <span class='number'>4</span>) {
+        <span class='number'>0</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Int</span>(<span class='ident'>gen_int</span>(<span class='ident'>g</span>)),
+        <span class='number'>1</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Text</span>(<span class='ident'>gen_text</span>(<span class='ident'>g</span>)),
+        <span class='number'>2</span> <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Bytes</span>(<span class='ident'>gen_bytes</span>(<span class='ident'>g</span>)),
         _ <span class='op'>=&gt;</span> <span class='ident'>Key</span>::<span class='ident'>Bool</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>()),
+    }
+}
+
+<span class='kw'>fn</span> <span class='ident'>gen_int</span><span class='op'>&lt;</span><span class='ident'>G</span>: <span class='ident'>Gen</span><span class='op'>&gt;</span>(<span class='ident'>g</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>G</span>) <span class='op'>-&gt;</span> <span class='ident'>Int</span> {
+    <span class='kw'>if</span> <span class='ident'>g</span>.<span class='ident'>gen</span>() {
+        <span class='ident'>Int</span>::<span class='ident'>Pos</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>())
+    } <span class='kw'>else</span> {
+        <span class='ident'>Int</span>::<span class='ident'>Neg</span>(<span class='ident'>g</span>.<span class='ident'>gen</span>())
     }
 }
 
