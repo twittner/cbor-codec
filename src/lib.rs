@@ -19,7 +19,7 @@ pub mod value;
 pub mod decoder;
 pub mod encoder;
 pub mod skip;
-pub mod read_slice;
+pub mod slice;
 
 #[cfg(feature="random")]
 pub mod random;
