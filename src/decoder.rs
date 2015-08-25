@@ -100,6 +100,7 @@ use skip::Skip;
 use types::{Tag, Type};
 use value::{self, Bytes, Key, Simple, Text, Value};
 use read_slice::ReadSlice;
+use read_slice::Error as ReadSliceError;
 
 // Decoder Configuration ////////////////////////////////////////////////////
 
@@ -540,20 +541,25 @@ impl<R: ReadBytesExt+ReadSlice> Kernel<R> {
     /// Read `begin` as the length and return that many raw bytes as slice.
     /// If length is greater than the given `max_len`, `DecodeError::TooLong`
     /// is returned instead.
-    pub fn raw_data_slice<'x>(&'x mut self, begin: u8, max_len: usize)
-        -> DecodeResult<&'x [u8]>
+    pub fn raw_data_slice(&mut self, begin: u8, max_len: usize)
+        -> DecodeResult<&[u8]>
     {
         let len = try!(self.unsigned(begin));
         if len > max_len as u64 {
             return Err(DecodeError::TooLong { max: max_len, actual: len })
         }
-        // TODO(tailhook) should it deal with eintr? Or should read_slice itself?
-        match self.reader.read_slice(len) {
+        match self.reader.read_slice(len as usize) {
             Ok(value)  => {
                 debug_assert!(value.len() as u64 == len);
                 return Ok(value)
             }
-            Err(e) => return Err(DecodeError::IoError(e)),
+            Err(ReadSliceError::Io(ref e))
+            if e.kind() == io::ErrorKind::Interrupted => {
+                unimplemented!();
+            }
+            Err(e) => {
+                return Err(DecodeError::from(e));
+            }
         }
     }
 }
