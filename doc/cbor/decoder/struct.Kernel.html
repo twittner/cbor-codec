@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-18668' class='srclink' href='../../src/cbor/decoder.rs.html#342-344' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-18711' class='srclink' href='../../src/cbor/decoder.rs.html#359-361' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Kernel&lt;R&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>This decoding kernel reads from an underlying <code>std::io::Read</code> type
@@ -74,8 +74,14 @@ for handling <code>Tag</code>s, heterogenous data and generic value decoding.</p
 <div class='docblock'><p>Decode <code>first</code> and potentially the following bytes as an
 unsigned value following the rules of major type 0.</p>
 </div><h4 id='method.raw_data' class='method'><code>fn <a href='#method.raw_data' class='fnname'>raw_data</a>(&amp;mut self, begin: <a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>, max_len: <a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>&gt;&gt;</code></h4>
-<div class='docblock'><p>Read <code>begin</code> as the length and return that many raw bytes.
-If length is greater than the given <code>max_len</code>, <code>DecodeError::TooLong</code>
+<div class='docblock'><p>Read <code>begin</code> as the length and return that many raw bytes.</p>
+
+<p>If length is greater than the given <code>max_len</code>, <code>DecodeError::TooLong</code>
+is returned instead.</p>
+</div></div><h3 class='impl'><code>impl&lt;R: <a class='trait' href='../../byteorder/new/trait.ReadBytesExt.html' title='byteorder::new::ReadBytesExt'>ReadBytesExt</a> + <a class='trait' href='../../cbor/slice/trait.ReadSlice.html' title='cbor::slice::ReadSlice'>ReadSlice</a>&gt; <a class='struct' href='../../cbor/decoder/struct.Kernel.html' title='cbor::decoder::Kernel'>Kernel</a>&lt;R&gt;</code></h3><div class='impl-items'><h4 id='method.raw_slice' class='method'><code>fn <a href='#method.raw_slice' class='fnname'>raw_slice</a>(&amp;mut self, begin: <a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>, max_len: <a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>&gt;</code></h4>
+<div class='docblock'><p>Read <code>begin</code> as the length and return that many raw bytes as a slice.</p>
+
+<p>If length is greater than the given <code>max_len</code>, <code>DecodeError::TooLong</code>
 is returned instead.</p>
 </div></div></section>
     <section id='search' class="content hidden"></section>

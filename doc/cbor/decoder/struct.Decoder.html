@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-20462' class='srclink' href='../../src/cbor/decoder.rs.html#570-573' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-20570' class='srclink' href='../../src/cbor/decoder.rs.html#603-606' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Decoder&lt;R&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>The actual decoder type definition</p>
@@ -117,6 +117,17 @@ it might not even be well-formed CBOR. Instead <code>skip</code> is an
 optimisation over <code>GenericDecoder::value()</code> and generally only
 determines as much information as necessary to safely skip a value
 without keeping all of it in memory.</p>
+</div></div><h3 class='impl'><code>impl&lt;R: <a class='trait' href='../../byteorder/new/trait.ReadBytesExt.html' title='byteorder::new::ReadBytesExt'>ReadBytesExt</a> + <a class='trait' href='../../cbor/slice/trait.ReadSlice.html' title='cbor::slice::ReadSlice'>ReadSlice</a>&gt; <a class='struct' href='../../cbor/decoder/struct.Decoder.html' title='cbor::decoder::Decoder'>Decoder</a>&lt;R&gt;</code></h3><div class='impl-items'><h4 id='method.text_borrow' class='method'><code>fn <a href='#method.text_borrow' class='fnname'>text_borrow</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;&amp;<a href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a>&gt;</code></h4>
+<div class='docblock'><p>Decode a single UTF-8 encoded String and borrow it from underlying
+buffer instead of allocating.</p>
+
+<p>Please note that indefinite strings are not supported by this method.</p>
+</div><h4 id='method.bytes_borrow' class='method'><code>fn <a href='#method.bytes_borrow' class='fnname'>bytes_borrow</a>(&amp;mut self) -&gt; <a class='type' href='../../cbor/decoder/type.DecodeResult.html' title='cbor::decoder::DecodeResult'>DecodeResult</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>&gt;</code></h4>
+<div class='docblock'><p>Decode a single byte string and borrow it from underlying
+buffer instead of allocating.</p>
+
+<p>Please note that indefinite byte strings are not supported by this
+method.</p>
 </div></div></section>
     <section id='search' class="content hidden"></section>
 
