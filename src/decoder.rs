@@ -481,13 +481,13 @@ impl<R: ReadBytesExt> Kernel<R> {
             | (Type::Int16, a)
             | (Type::Int32, a)
             | (Type::Int64, a) =>
-                self.unsigned(a).map(|n| Int::Neg(n)),
+                self.unsigned(a).map(Int::Neg),
 
               (Type::UInt8, a)
             | (Type::UInt16, a)
             | (Type::UInt32, a)
             | (Type::UInt64, a) =>
-                self.unsigned(a).map(|n| Int::Pos(n)),
+                self.unsigned(a).map(Int::Pos),
 
             _ => unexpected_type(ti)
         }

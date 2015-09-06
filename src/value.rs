@@ -66,9 +66,9 @@ impl Int {
     /// Map this value to an `i64`. If the value does not
     /// fit within `[i64::MIN, i64::MAX]`, `None` is returned instead.
     pub fn i64(&self) -> Option<i64> {
-        match self {
-            &Int::Neg(n) if n <= i64::MAX as u64 => Some(-1 - n as i64),
-            &Int::Pos(n) if n <= i64::MAX as u64 => Some(n as i64),
+        match *self {
+            Int::Neg(n) if n <= i64::MAX as u64 => Some(-1 - n as i64),
+            Int::Pos(n) if n <= i64::MAX as u64 => Some(n as i64),
             _ => None
         }
     }
@@ -76,9 +76,9 @@ impl Int {
     /// Map this value to a `u64`. If the value is negative,
     /// `None` is returned instead.
     pub fn u64(&self) -> Option<u64> {
-        match self {
-            &Int::Pos(n) => Some(n),
-            _            => None
+        match *self {
+            Int::Pos(n) => Some(n),
+            _           => None
         }
     }
 }

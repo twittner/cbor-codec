@@ -4,7 +4,7 @@
 // can obtain one at http://mozilla.org/MPL/2.0/.
 
 use util::identity;
-use std::{i8, i16, i32, i64};
+use std::{i8, i16, i32, i64, f32, f64};
 
 #[cfg(feature="random")]
 mod value;
@@ -87,12 +87,12 @@ fn identity_u64_i64(x: u64) -> bool {
 
 #[quickcheck]
 fn identity_f32(x: f32) -> bool {
-    identity(|mut e| e.f32(x), |mut d| d.f32().unwrap() == x)
+    identity(|mut e| e.f32(x), |mut d| f32::abs(d.f32().unwrap() - x) < f32::EPSILON)
 }
 
 #[quickcheck]
 fn identity_f64(x: f64) -> bool {
-    identity(|mut e| e.f64(x), |mut d| d.f64().unwrap() == x)
+    identity(|mut e| e.f64(x), |mut d| f64::abs(d.f64().unwrap() - x) < f64::EPSILON)
 }
 
 #[quickcheck]
