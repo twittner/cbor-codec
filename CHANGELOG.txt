@@ -1,3 +1,7 @@
+0.4.2
+-----
+- Bugfix release (fixes fix indefinite object/array encoding).
+
 0.4.1
 -----
 - Internal improvements.
