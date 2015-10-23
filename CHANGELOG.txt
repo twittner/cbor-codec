@@ -1,6 +1,6 @@
 0.4.2
 -----
-- Bugfix release (fixes fix indefinite object/array encoding).
+- Bugfix release (fixes indefinite object/array encoding).
 
 0.4.1
 -----
