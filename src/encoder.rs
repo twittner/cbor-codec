@@ -339,7 +339,7 @@ impl<W: WriteBytesExt> Encoder<W> {
 
     /// End of indefinite array encoding. (RFC 7049 section 2.2.1)
     pub fn array_end(&mut self) -> EncodeResult {
-        self.writer.write_u8(0b100_11111).map_err(From::from)
+        self.writer.write_u8(0b111_11111).map_err(From::from)
     }
 
     pub fn object(&mut self, len: usize) -> EncodeResult {
@@ -347,13 +347,13 @@ impl<W: WriteBytesExt> Encoder<W> {
     }
 
     /// Indefinite object encoding. (RFC 7049 section 2.2.1)
-    pub fn object_begin<F>(&mut self) -> EncodeResult {
+    pub fn object_begin(&mut self) -> EncodeResult {
         self.writer.write_u8(0b101_11111).map_err(From::from)
     }
 
     /// End of indefinite object encoding. (RFC 7049 section 2.2.1)
-    pub fn object_end<F>(&mut self) -> EncodeResult {
-        self.writer.write_u8(0b101_11111).map_err(From::from)
+    pub fn object_end(&mut self) -> EncodeResult {
+        self.writer.write_u8(0b111_11111).map_err(From::from)
     }
 
     fn type_len(&mut self, t: Type, x: u64) -> EncodeResult {
@@ -573,11 +573,72 @@ mod tests {
     }
 
     #[test]
+    fn indefinite_array() {
+        encoded("9f018202039f0405ffff", |mut e| {
+            e.array_begin()
+             .and(e.u8(1))
+             .and(e.array(2))
+                .and(e.u8(2))
+                .and(e.u8(3))
+             .and(e.array_begin())
+                .and(e.u8(4))
+                .and(e.u8(5))
+                .and(e.array_end())
+            .and(e.array_end())
+        });
+        encoded("9f01820203820405ff", |mut e| {
+            e.array_begin()
+             .and(e.u8(1))
+             .and(e.array(2))
+                .and(e.u8(2))
+                .and(e.u8(3))
+             .and(e.array(2))
+                .and(e.u8(4))
+                .and(e.u8(5))
+            .and(e.array_end())
+        });
+        encoded("83018202039f0405ff", |mut e| {
+            e.array(3)
+             .and(e.u8(1))
+             .and(e.array(2))
+                .and(e.u8(2))
+                .and(e.u8(3))
+             .and(e.array_begin())
+                .and(e.u8(4))
+                .and(e.u8(5))
+                .and(e.array_end())
+        });
+        encoded("83019f0203ff820405", |mut e| {
+            e.array(3)
+             .and(e.u8(1))
+             .and(e.array_begin())
+                .and(e.u8(2))
+                .and(e.u8(3))
+                .and(e.array_end())
+             .and(e.array(2))
+                .and(e.u8(4))
+                .and(e.u8(5))
+        })
+    }
+
+    #[test]
     fn object() {
         encoded("a26161016162820203", |mut e| {
             try!(e.object(2));
             try!(e.text("a").and(e.u8(1)));
             e.text("b").and(e.array(2)).and(e.u8(2)).and(e.u8(3))
+        })
+    }
+
+    #[test]
+    fn indefinite_object() {
+        encoded("bf6346756ef563416d7421ff", |mut e| {
+            e.object_begin()
+             .and(e.text("Fun"))
+             .and(e.bool(true))
+             .and(e.text("Amt"))
+             .and(e.i8(-2))
+             .and(e.object_end())
         })
     }
 
