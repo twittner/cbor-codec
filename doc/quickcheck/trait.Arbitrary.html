@@ -24,10 +24,10 @@
 
     
 
-    <section class="sidebar">
+    <nav class="sidebar">
         
         <p class='location'><a href='index.html'>quickcheck</a></p><script>window.sidebarCurrent = {name: 'Arbitrary', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
-    </section>
+    </nav>
 
     <nav class="sub">
         <form class="search-form js-only">
@@ -45,7 +45,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-149' class='srclink' href='../src/quickcheck/arbitrary.rs.html#72-78' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-46' class='srclink' href='../src/quickcheck/arbitrary.rs.html#81-87' title='goto source code'>[src]</a></span></h1>
 <pre class='rust trait'>pub trait Arbitrary: <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static {
     fn <a href='#tymethod.arbitrary' class='fnname'>arbitrary</a>&lt;G: <a class='trait' href='../quickcheck/trait.Gen.html' title='quickcheck::Gen'>Gen</a>&gt;(g: &amp;mut G) -&gt; Self;
 
@@ -88,7 +88,13 @@ bounds.</p>
 <li><code>impl&lt;A: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, B: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, C: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, D: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, E: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, F: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, G: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, H: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, I: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, J: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, K: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>(A, B, C, D, E, F, G, H, I, J, K)</a></code></li>
 <li><code>impl&lt;A: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, B: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, C: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, D: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, E: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, F: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, G: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, H: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, I: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, J: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, K: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>, L: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>(A, B, C, D, E, F, G, H, I, J, K, L)</a></code></li>
 <li><code>impl&lt;A: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;A&gt;</code></li>
+<li><code>impl&lt;K: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html' title='core::cmp::Ord'>Ord</a>, V: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/btree/map/struct.BTreeMap.html' title='collections::btree::map::BTreeMap'>BTreeMap</a>&lt;K, V&gt;</code></li>
 <li><code>impl&lt;K: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html' title='core::hash::Hash'>Hash</a>, V: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.HashMap.html' title='std::collections::hash::map::HashMap'>HashMap</a>&lt;K, V&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html' title='core::cmp::Ord'>Ord</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/btree/set/struct.BTreeSet.html' title='collections::btree::set::BTreeSet'>BTreeSet</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html' title='core::cmp::Ord'>Ord</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/binary_heap/struct.BinaryHeap.html' title='collections::binary_heap::BinaryHeap'>BinaryHeap</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html' title='core::hash::Hash'>Hash</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/std/collections/hash/set/struct.HashSet.html' title='std::collections::hash::set::HashSet'>HashSet</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/linked_list/struct.LinkedList.html' title='collections::linked_list::LinkedList'>LinkedList</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec_deque/struct.VecDeque.html' title='collections::vec_deque::VecDeque'>VecDeque</a>&lt;T&gt;</code></li>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a></code></li>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.char.html'>char</a></code></li>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></li>
@@ -103,6 +109,10 @@ bounds.</p>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></li>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a></code></li>
 <li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.f64.html'>f64</a></code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html' title='core::cmp::PartialOrd'>PartialOrd</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/core/ops/struct.Range.html' title='core::ops::Range'>Range</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html' title='core::cmp::PartialOrd'>PartialOrd</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/core/ops/struct.RangeFrom.html' title='core::ops::RangeFrom'>RangeFrom</a>&lt;T&gt;</code></li>
+<li><code>impl&lt;T: <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html' title='core::cmp::PartialOrd'>PartialOrd</a>&gt; <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/core/ops/struct.RangeTo.html' title='core::ops::RangeTo'>RangeTo</a>&lt;T&gt;</code></li>
+<li><code>impl <a class='trait' href='../quickcheck/trait.Arbitrary.html' title='quickcheck::Arbitrary'>Arbitrary</a> for <a class='struct' href='https://doc.rust-lang.org/nightly/core/ops/struct.RangeFull.html' title='core::ops::RangeFull'>RangeFull</a></code></li>
 </ul><script type="text/javascript" async
                               src="../implementors/quickcheck/trait.Arbitrary.js">
                       </script></section>
@@ -110,10 +120,12 @@ bounds.</p>
 
     <section class="footer"></section>
 
-    <div id="help" class="hidden">
+    <aside id="help" class="hidden">
         <div>
+            <h1 class="hidden">Help</h1>
+
             <div class="shortcuts">
-                <h1>Keyboard Shortcuts</h1>
+                <h2>Keyboard Shortcuts</h2>
 
                 <dl>
                     <dt>?</dt>
@@ -130,7 +142,7 @@ bounds.</p>
             </div>
 
             <div class="infos">
-                <h1>Search Tricks</h1>
+                <h2>Search Tricks</h2>
 
                 <p>
                     Prefix searches with a type followed by a colon (e.g.
@@ -150,7 +162,7 @@ bounds.</p>
                 </p>
             </div>
         </div>
-    </div>
+    </aside>
 
     
 
