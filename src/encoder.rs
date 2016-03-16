@@ -66,7 +66,7 @@
 //! }
 //! ```
 
-use byteorder::{self, BigEndian, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 use std::io;
 use std::error::Error;
 use std::fmt;
@@ -110,15 +110,6 @@ impl Error for EncodeError {
         match *self {
             EncodeError::IoError(ref e) => Some(e),
             _                           => None
-        }
-    }
-}
-
-impl From<byteorder::Error> for EncodeError {
-    fn from(e: byteorder::Error) -> EncodeError {
-        match e {
-            byteorder::Error::UnexpectedEOF => EncodeError::UnexpectedEOF,
-            byteorder::Error::Io(e)         => EncodeError::IoError(e)
         }
     }
 }
