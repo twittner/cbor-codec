@@ -86,7 +86,7 @@
 //! assert_eq!(None, opt(d.u8()).unwrap())
 //! ```
 
-use byteorder::{self, BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt};
 use slice::{ReadSlice, ReadSliceError};
 use std::collections::{BTreeMap, LinkedList};
 use std::cmp::Eq;
@@ -261,15 +261,6 @@ impl Error for DecodeError {
             DecodeError::IoError(ref e)     => Some(e),
             DecodeError::InvalidUtf8(ref e) => Some(e),
             _                               => None
-        }
-    }
-}
-
-impl From<byteorder::Error> for DecodeError {
-    fn from(e: byteorder::Error) -> DecodeError {
-        match e {
-            byteorder::Error::UnexpectedEOF => DecodeError::UnexpectedEOF,
-            byteorder::Error::Io(e)         => DecodeError::IoError(e)
         }
     }
 }

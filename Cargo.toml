@@ -15,8 +15,8 @@ name = "cbor"
 random = ["quickcheck"]
 
 [dependencies]
-byteorder = "> 0.3.0"
-libc      = "> 0.1.0"
+byteorder = ">= 0.5.0"
+libc      = ">  0.1.0"
 
 [dependencies.quickcheck]
 version  = ">= 0.2.21"

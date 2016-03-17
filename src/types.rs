@@ -5,7 +5,8 @@
 
 //! CBOR types and tags definitions.
 
-use byteorder::{Error, ReadBytesExt};
+use byteorder::{ReadBytesExt};
+use std::io::Error;
 
 /// The CBOR types.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
